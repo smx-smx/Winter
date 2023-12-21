@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Winter", "Winter\Winter.csproj", "{EC52213C-02A8-4C46-B2E5-7CF85B54F14D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Winter.Gui", "Winter.Gui\Winter.Gui.csproj", "{DFE121AD-6E56-459B-83EF-038D2CEA70BF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EC52213C-02A8-4C46-B2E5-7CF85B54F14D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC52213C-02A8-4C46-B2E5-7CF85B54F14D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC52213C-02A8-4C46-B2E5-7CF85B54F14D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC52213C-02A8-4C46-B2E5-7CF85B54F14D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFE121AD-6E56-459B-83EF-038D2CEA70BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFE121AD-6E56-459B-83EF-038D2CEA70BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFE121AD-6E56-459B-83EF-038D2CEA70BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFE121AD-6E56-459B-83EF-038D2CEA70BF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {678F1763-7EE0-4787-9C3D-48F76A088C6C}
+	EndGlobalSection
+EndGlobal
