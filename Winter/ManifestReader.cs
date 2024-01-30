@@ -1,3 +1,11 @@
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
 ﻿using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Buffers.Binary;
@@ -22,9 +30,8 @@ namespace Smx.Winter
     {
         private Memory<byte> dictionary;
 
-        public ManifestReader(Memory<byte> dictionary) {
-
-            this.dictionary = dictionary;
+        public ManifestReader(WcpLibraryAccessor wcp) {
+            this.dictionary = wcp.ServicingStack.GetPatchDictionary();
         }
 
         private const uint DCM_MAGIC = 0x44434D01;

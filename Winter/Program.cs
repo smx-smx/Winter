@@ -1,3 +1,11 @@
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
@@ -10,6 +18,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -51,68 +60,24 @@ public static class DisposableMemoryExtensions
 
 public class Program
 {
-
-    void LoadComponentsHive()
-    {
-        Util.EnablePrivilege(PInvoke.SE_BACKUP_NAME);
-        Util.EnablePrivilege(PInvoke.SE_RESTORE_NAME);
-        
-        var componentsHivePath = Path.Combine(windows.SystemRoot, "System32", "Config", "components");        
-        var hKey = new SafeRegistryHandle((nint)RegistryHive.LocalMachine, true);
-        PInvoke.RegLoadKey(hKey, "COMPONENTS", componentsHivePath);
-    }
-
-    bool IsComponentsHiveLoaded()
-    {
-        try
-        {
-            using var key = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\COMPONENTS");
-            return true;
-        }
-        catch (Win32Exception ex)
-        {
-            var err = (WIN32_ERROR)ex.NativeErrorCode;
-            if (err != WIN32_ERROR.ERROR_FILE_NOT_FOUND)
-            {
-                throw;
-            }
-
-            return false;
-        }   
-    }
-
-    void MaybeLoadComponentsHive()
-    {
-        if (!IsComponentsHiveLoaded())
-        {
-            LoadComponentsHive();
-            //AppDomain.CurrentDomain.ProcessExit += UnloadComponentsHive;
-        }
-    }
-
-    private static void UnloadComponentsHive(object? sender, EventArgs e)
-    {
-        var hKey = new SafeRegistryHandle((nint)RegistryHive.LocalMachine, true);
-        PInvoke.RegUnLoadKey(hKey, "COMPONENTS");
-    }
-
     private WindowsSystem windows;
     private ElevationService elevator;
     private ComponentStoreService store;
-    private readonly WcpLibrary wcp;
+    private readonly WcpLibrary servicingStack;
     private readonly ManifestReader decompressor;
+
 
     public Program(
         WindowsSystem windows,
         ElevationService elevator,
         ComponentStoreService store,
-        WcpLibrary wcp,
+        WcpLibraryAccessor wcp,
         ManifestReader decompressor
     ) {
         this.windows = windows;
         this.elevator = elevator;
         this.store = store;
-        this.wcp = wcp;
+        this.servicingStack = wcp.ServicingStack;
         this.decompressor = decompressor;
     }
 
@@ -162,54 +127,49 @@ public class Program
         }
     }
 
-    public void Test()
+    public void TestCBS()
     {
-        //cs.TraverseDeployments();
-        using var wcp = store.GetServicingStack();
+        /*
+        foreach (var cat in store.Catalogs)
+        {
+            foreach (var dep in cat.Deployments)
+            {
+                var hash = servicingStack.GetAppIdHash(dep.AppId);
+                Console.WriteLine(dep.AppId);
+                Console.WriteLine(hash);
+            }
+        }
+        return;
+        */
 
-        //var componentName = Path.GetFileName(Path.GetDirectoryName(wcp.LibraryPath));
-        var componentName = "wow64_microsoft-windows-o..euapcommonproxystub_31bf3856ad364e35_10.0.19041.3636_none_11aa075e69fefa11";
+        foreach (var cmp in store.Components)
+        {
+            var hash = string.Format("{0:x}", servicingStack.GetAppIdHash(cmp.Identity));
+            Console.WriteLine(cmp);
+            Console.WriteLine(cmp.Identity);
 
-        var manifestPath = Path.Combine(windows.SystemRoot,
-            "WinSxS", "Manifests", $"{componentName}.manifest");
+            var formatted = ComponentAppId.Parse(cmp.Identity).GetSxSName(compact: true);
+            var manifestPath = Path.Combine(windows.SystemRoot, "WinSxS", "Manifests", $"{formatted}.manifest");
+            if (!File.Exists(manifestPath))
+            {
+                Console.WriteLine("!!!!!!! FAIL: " + manifestPath);
+            }
+        }
+        return;
 
-        var asm = wcp.DecompressManifest(manifestPath);
-        Console.WriteLine(asm);
-    }
-
-    private static ServiceProvider BuildServices()
-    {
-        var sc = new ServiceCollection();
-
-        var windowsSystem = new WindowsSystem();
-        var elevationService = new ElevationService();
-        var componentStore = new ComponentStoreService(windowsSystem);
-        var servicingStack = componentStore.GetServicingStack();
-        var manifestDecompressor = new ManifestReader(servicingStack.GetPatchDictionary());
-
-        var componentFactory = new ComponentFactory(windowsSystem, componentStore);
-
-        sc.AddSingleton(windowsSystem);
-        sc.AddSingleton(elevationService);
-        sc.AddSingleton(componentStore);
-        sc.AddSingleton(servicingStack);
-        sc.AddSingleton(manifestDecompressor);
-        sc.AddSingleton(componentFactory);
-
-        sc.AddSingleton<Program>();
-        return sc.BuildServiceProvider();
+        
     }
 
     public static void Main(string[] args)
     {
-        using var services = BuildServices();
+        using var winter = new WinterFacade();
+        winter.Initialize();
 
-        var p = services.GetRequiredService<Program>();
-        p.MaybeLoadComponentsHive();
+        var p = winter.Services.GetRequiredService<Program>();
         p.Initialize();
         //p.elevator.RunAsTrustedInstaller("cmd.exe");
-        p.TestAllManifests(true);
-        //p.Test();
+        //p.TestAllManifests(true);
+        p.TestCBS();
 
         //XmlMerger.ToolMain([@"S:\out", @"S:\merged.xml"]);
     }

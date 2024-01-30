@@ -1,3 +1,11 @@
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,6 +44,22 @@ namespace Smx.Winter.Tools
 
             var refElements = reference.Elements();
             var patchElements = patch.Elements();
+
+            if(patch.FirstNode is XElement patchText)
+            {
+                var refChild = reference.FirstNode;
+                if(refChild.NodeType != XmlNodeType.Text)
+                {
+                    reference.AddFirst(new XText(patchText.ToString()));
+                } else
+                {
+                    var referenceText = (XText)refChild;
+                    if (string.IsNullOrEmpty(referenceText.ToString()) && !string.IsNullOrWhiteSpace(patchText.ToString()))
+                    {
+                        reference.SetValue(patchText.ToString());
+                    }
+                }
+            }
 
             foreach(var pel in patchElements)
             {

@@ -1,4 +1,14 @@
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
 ﻿using System.Collections.Immutable;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Smx.Winter
 {
@@ -16,7 +26,7 @@ namespace Smx.Winter
         VersionScope = 1 << 8
     }
 
-    public class ComponentAppId
+    public partial class ComponentAppId
     {
         public string? Name { get; set; }
         public string? Culture { get; set; }
@@ -24,6 +34,7 @@ namespace Smx.Winter
         public string? PublicKeyToken { get; set; }
         public string? ProcessorArchitecture { get; set; }
         public string? VersionScope { get; set; }
+        public string? Type { get; set; }
 
         public static ComponentAppId Parse(string str)
         {
@@ -42,7 +53,8 @@ namespace Smx.Winter
                 Version = props.GetValueOrDefault("Version"),
                 ProcessorArchitecture = props.GetValueOrDefault("ProcessorArchitecture"),
                 VersionScope = props.GetValueOrDefault("versionScope"),
-                PublicKeyToken = props.GetValueOrDefault("PublicKeyToken")
+                PublicKeyToken = props.GetValueOrDefault("PublicKeyToken"),
+                Type = props.GetValueOrDefault("Type")
             };
         }
 
@@ -87,6 +99,26 @@ namespace Smx.Winter
             prevHash = prevHash * HASH_KEY + hash;
         }
 
+        private NameHashFlags GetNameFlags()
+        {
+            NameHashFlags flags = (0
+                | (string.IsNullOrEmpty(Name) ? 0
+                    : NameHashFlags.Name)
+                | ((string.IsNullOrEmpty(Culture) || Culture == "neutral") ? 0 
+                    : NameHashFlags.Culture)
+                | (string.IsNullOrEmpty(Type) ? 0 
+                    : NameHashFlags.Type)
+                | (string.IsNullOrEmpty(PublicKeyToken) ? 0
+                    : NameHashFlags.PublicKeyToken)
+                | (string.IsNullOrEmpty(Version) ? 0
+                    : NameHashFlags.Version)
+                | (string.IsNullOrEmpty(VersionScope) ? 0
+                    : NameHashFlags.VersionScope)
+                | (string.IsNullOrEmpty(ProcessorArchitecture) ? 0
+                    : NameHashFlags.ProcessorArchitecture)
+            );
+            return flags;
+        }
 
         public ulong GetHash(NameHashFlags flags)
         {
@@ -103,13 +135,14 @@ namespace Smx.Winter
                 // en-US
                 HashAppend(ref hash, HashNameAndValue("culture", this.Culture));
             }
-            if (flags.HasFlag(NameHashFlags.TypeName) && false)
+            if (flags.HasFlag(NameHashFlags.TypeName))
             {
+                throw new NotImplementedException();
                 HashAppend(ref hash, HashNameAndValue("typeName", FIXME_TODO));
             }
-            if (flags.HasFlag(NameHashFlags.Type) && false)
+            if (flags.HasFlag(NameHashFlags.Type) && this.Type != null)
             {
-                HashAppend(ref hash, HashNameAndValue("Type", FIXME_TODO));
+                HashAppend(ref hash, HashNameAndValue("Type", this.Type));
             }
 
 
@@ -155,19 +188,53 @@ namespace Smx.Winter
             | NameHashFlags.ProcessorArchitecture
             | NameHashFlags.VersionScope;
 
-        public string GetSxSName()
+        private string GetSanitizedString(string str, int maxLength = -1)
         {
-            var hash = GetHash(DEFAULT_HASH_FLAGS).ToString("x8");
+            const string dotdot = "..";
+
+            str = CharsToRemove().Replace(str.ToLowerInvariant(), "");
+
+            if (maxLength > 0 && str.Length > maxLength)
+            {
+                var mid = (maxLength / 2)-1;
+                var right_start = str.Length - mid;
+
+                var sb = new StringBuilder();
+                sb.Append(str.Substring(0, mid));
+                sb.Append(dotdot);
+                sb.Append(str.Substring(right_start, mid));
+                str = sb.ToString();
+            }
+            return str;
+        }
+
+        public string GetSxSName(bool compact = true)
+        {
+            /** GenerateKeyFormIntoBuffer_LHFormat **/
+
+            Console.WriteLine(Name);
+
+            var hash = GetHash(GetNameFlags()).ToString("x16");
             var culture = Culture == "neutral"
                 ? "none" 
                 : Culture;
-            
-            return $"{ProcessorArchitecture}"
-                + $"_{Name}"
-                + $"_{PublicKeyToken}"
-                + $"_{Version}"
-                + $"_{culture}"
-                + $"_{hash}";
+
+            var output = new StringBuilder();
+            output.Append(ProcessorArchitecture);
+            output.Append('_');
+            output.Append(GetSanitizedString(Name, compact ? 40 : -1));
+            output.Append('_');
+            output.Append(PublicKeyToken);
+            output.Append('_');
+            output.Append(Version);
+            output.Append('_');
+            output.Append(GetSanitizedString(culture, compact ? 8 : -1));
+            output.Append('_');
+            output.Append(hash);
+            return output.ToString();
         }
+
+        [GeneratedRegex(@"[ \(\)]")]
+        private static partial Regex CharsToRemove();
     }
 }

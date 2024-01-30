@@ -9,7 +9,8 @@
     <RootNamespace>Smx.Winter</RootNamespace>
     <AssemblyName>Smx.Winter</AssemblyName>
 	<PlatformName>windows</PlatformName>
-	<!--<OutDir>test</OutDir>-->
+	<Platforms>AnyCPU</Platforms>
+	<!-- <OutDir>test</OutDir> -->
   </PropertyGroup>
 
   <ItemGroup>

@@ -12,10 +12,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Winter
+namespace Smx.Winter.Cbs
 {
-    public class DeltaUnpacker
+    internal class ComponentFamily
     {
-
     }
 }

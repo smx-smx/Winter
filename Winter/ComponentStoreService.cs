@@ -1,4 +1,13 @@
-﻿using System;
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
+﻿using Smx.Winter.Cbs;
+using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -19,48 +28,6 @@ using static Smx.Winter.IRtlAppIdAuthority;
 
 namespace Smx.Winter
 {
-    public class Component
-    {
-        public readonly string FilePath;
-        public string CurrentComponent { get; private set; }
-
-
-        private string? GetSxSPath(string filePath)
-        {
-            var dirSep = Path.DirectorySeparatorChar;
-            return Util.GetHardLinks(filePath)
-                .FirstOrDefault(
-                    l => l.Contains($"{dirSep}WinSxS{dirSep}",
-                    StringComparison.InvariantCultureIgnoreCase));
-        }
-
-        public Component(string filePath)
-        {
-            this.FilePath = filePath;
-            var sxsPath = GetSxSPath(filePath);
-            if (sxsPath == null) throw new ArgumentException();
-
-            var sxsDir = Path.GetDirectoryName(sxsPath);
-            if(sxsDir == null) throw new ArgumentException();
-            var sxsDirName = Path.GetFileName(sxsDir);
-
-            CurrentComponent = sxsDirName;
-        }
-    }
-
-    public record ComponentDeployment(ManagedRegistryKey baseKey)
-    {
-        public string AppId
-        {
-            get
-            {
-                var appId = baseKey.GetValue<byte[]>("appid");
-                return Encoding.UTF8.GetString(appId);
-            }
-        }
-    }
-
-
     public class VersionedComponent
     {
         public void GetHashList()
@@ -110,14 +77,6 @@ namespace Smx.Winter
 
         public ComponentStoreService(WindowsSystem windows) {
             this.windows = windows;
-        }
-
-        private string GetLastWCPVersionToAccessStore()
-        {
-            using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\COMPONENTS\ServicingStackVersions");
-            var formattedVersion = hkey.GetValue<string>("LastWCPVersionToAccessStore");
-            var lastVer = formattedVersion.Split('(').First().TrimEnd();
-            return lastVer;
         }
 
         private void PrintHashList(string hashList)
@@ -186,128 +145,48 @@ namespace Smx.Winter
             return addr - wcpBase;
         }
 
-        private ulong GetAppIdHash(WcpLibrary wcp, string appIdString)
-        {
-            //var appIdTest = "Microsoft-Windows-CoreSystem-RemoteFS-Client-Deployment-LanguagePack, Culture=it-IT, Version=10.0.19041.3570, PublicKeyToken=31bf3856ad364e35, ProcessorArchitecture=amd64, versionScope=NonSxS";
-
-            using var appId = wcp.AppIdParseDefinition(appIdString);
-            if (appId == null) throw new InvalidOperationException();
-
-            /** CRtlAppIdAuthority stuff **/
-#if false
-            if(false){
-                var appId_intf1 = Marshal.ReadIntPtr(appId - 8);
-                var appId_intf2 = appId - 16;
-
-                var appId_intf1_vtbl = Marshal.ReadIntPtr(appId_intf1);
-                var appId_intf2_vtbl = Marshal.ReadIntPtr(appId_intf2 + 0x10);
-
-                var pfnGetType = Marshal.ReadIntPtr(appId_intf1_vtbl + 24);
-                var pfnGetHashData = Marshal.ReadIntPtr(appId_intf2_vtbl + 40);
-
-                Console.WriteLine($"intf1: {appId_intf1:X}, intf2: {appId_intf2:X}");
-                Console.WriteLine($"vtbl1: {appId_intf1_vtbl:X}, vtbl2: {appId_intf2_vtbl:X}");
-
-                var appId_intf1_GetType = Marshal.GetDelegateForFunctionPointer<pfnAppId_GetType>(pfnGetType);
-                var appIdType = appId_intf1_GetType(appId_intf1);
-
-                var appId_intf2_GetData = Marshal.GetDelegateForFunctionPointer<pfnAppId_GetData>(pfnGetHashData);
-                appId_intf2_GetData(appId_intf2 + 16, out nint pHashData);
-
-                Console.WriteLine(appIdType);
-                Console.WriteLine($"hd is {pHashData:X}");
-
-                var hashData = Marshal.PtrToStructure<IdAuthorityData>(pHashData);
-            }
-#endif
-
-            var pfnHashWrapped = wcp.GetDebugWrappedDelegate<pfnHash>("Hash");
-
-            bool USE_DEBUGGER_TRAP = false;
-
-            ulong hashValue;
-
-            int res;
-            if (USE_DEBUGGER_TRAP)
-            {
-                res = pfnHashWrapped(wcp.Authority, 0, appId.Value, out hashValue);
-            } else
-            {
-                res = wcp.HashAppId(0, appId, out hashValue);
-            }
-
-
-            var nameHashFlags = 0
-                | NameHashFlags.Name
-                | NameHashFlags.PublicKeyToken
-                | NameHashFlags.Version
-                | NameHashFlags.ProcessorArchitecture
-                | NameHashFlags.VersionScope;
-
-            Debug.Assert((uint)nameHashFlags == 0x117);
-
-            Console.WriteLine($"{res:X}, hash is {hashValue:X}");
-            var ourHash = ComponentAppId.Parse(appIdString).GetHash(nameHashFlags);
-            Console.WriteLine($"ours: {ourHash:X}");
-
-            if(ourHash != hashValue)
-            {
-                Console.WriteLine("!!!! DISCREPANCY");
-            }
-
-            return hashValue;
-        }
-
-        private const string MICROSOFT_PUBKEY = "31bf3856ad364e35";
-
-
         private void Test2()
         {
             var cmp = ComponentAppId.Parse("Microsoft.Windows.Common-Controls.Resources, Culture=bg-BG, Type=win32, Version=5.82.19041.1, PublicKeyToken=6595b64144ccf1df, ProcessorArchitecture=x86");
 
         }
 
-        public WcpLibrary GetServicingStack()
+        public IEnumerable<ComponentNode> Components
         {
-            var wcpVer = GetLastWCPVersionToAccessStore();
-
-            var servicingStackAppID = new ComponentAppId
+            get
             {
-                Name = "microsoft-windows-servicingstack",
-                Culture = "neutral",
-                ProcessorArchitecture = "amd64",
-                PublicKeyToken = MICROSOFT_PUBKEY,
-                Version = wcpVer,
-                VersionScope = "NonSxS"
-            };
-
-            var sxsName = servicingStackAppID.GetSxSName();
-            var servicingStackRoot = Path.Combine(windows.SystemRoot, "WinSxS", sxsName);
-            var wcpPath = Path.Combine(servicingStackRoot, "wcp.dll");
-
-            Console.WriteLine(wcpPath);
-            if (File.Exists(wcpPath))
-            {
-                Console.WriteLine("OK");
+                using var hkey = ManagedRegistryKey.Open(Registry.KEY_COMPONENTS);
+                foreach (var k in hkey.KeyNames)
+                {
+                    var catalog = Cbs.Component.FromRegistryKey(hkey.OpenChildKey(k));
+                    yield return new ComponentNode(catalog);
+                }
             }
-
-            var wcp = WcpLibrary.Load(wcpPath);
-
-            GetAppIdHash(wcp, servicingStackAppID.ToString());
-
-            return wcp;
-          
         }
 
-        public void TraverseDeployments()
+        public IEnumerable<CatalogNode> Catalogs
         {
-            using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\COMPONENTS\CanonicalData\Deployments");
-            foreach(var k in hkey.KeyNames)
+            get
             {
-                var deployment = new ComponentDeployment(hkey[k]);
-                var appId = ComponentAppId.Parse(deployment.AppId);
-                Console.WriteLine(k);
-                Console.WriteLine(appId);
+                using var hkey = ManagedRegistryKey.Open(Registry.KEY_CATALOGS);
+                foreach(var k in hkey.KeyNames)
+                {
+                    var catalog = Catalog.FromRegistryKey(hkey.OpenChildKey(k));
+                    yield return new CatalogNode(catalog);
+                }
+            }
+        }
+
+        public IEnumerable<DeploymentNode> Deployments
+        {
+            get
+            {
+                using var hkey = ManagedRegistryKey.Open(Registry.KEY_DEPLOYMENTS);
+                foreach (var k in hkey.KeyNames)
+                {
+                    var deployment = Deployment.FromRegistryKey(hkey.OpenChildKey(k));
+                    yield return new DeploymentNode(deployment);
+                }
             }
         }
     }

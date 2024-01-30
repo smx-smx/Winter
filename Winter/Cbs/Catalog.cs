@@ -1,34 +1,67 @@
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Smx.Winter.Cbs
 {
-    internal class Catalog : IDisposable
+    public class CatalogNode
     {
-        private readonly ComponentStoreService store;
-        private readonly ManagedRegistryKey key;
+        private Catalog catalog;
 
-        public string Thumbprint => key.Name;
-
-        private IEnumerable<Component> GetComponents()
+        public IEnumerable<DeploymentNode> Deployments
         {
-            return Enumerable.Empty<Component>();
+            get
+            {
+                return catalog.ComponentNames.Select(Registry.OpenDeployment);
+            }
         }
 
-        public IEnumerable<Component> Components => GetComponents();
-
-        public Catalog(ComponentStoreService store, ManagedRegistryKey key)
+        public CatalogNode(Catalog catalog)
         {
-            this.store = store;
-            this.key = key;
+            this.catalog = catalog;
         }
 
-        public void Dispose()
+        public override string ToString()
         {
-            key.Dispose();
+            return $"CatalogNode({catalog})";
+        }
+    }
+
+    public class Catalog
+    {
+        public List<string> ComponentNames { get; set; } = new List<string>();
+        public string Thumbprint { get; set; }
+
+        public Catalog()
+        {
+        }
+
+        public static Catalog FromRegistryKey(ManagedRegistryKey key)
+        {
+            return new Catalog
+            {
+                Thumbprint = key.Name,
+                ComponentNames = ObjectRefList.FromRegistryKey(key)
+                    .Where(o => o.ObjectType == ObjectType.Object)
+                    .Select(o => o.ObjectName)
+                    .ToList()
+            };
+        }
+
+        public override string ToString()
+        {
+            return Thumbprint;
         }
     }
 }

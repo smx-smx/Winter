@@ -1,7 +1,16 @@
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
 ﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -13,6 +22,7 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Memory;
 using static Smx.Winter.ComponentStoreService;
+using static Smx.Winter.IRtlAppIdAuthority;
 
 namespace Smx.Winter
 {
@@ -46,7 +56,11 @@ namespace Smx.Winter
             ref LUNICODE_STRING Buffer,
             ref nint BufferSize
         );
-        public delegate int pfnGenerateKeyFormIntoBuffer(nint pThis);
+        public delegate int pfnGenerateKeyFormIntoBuffer(nint pThis,
+            uint Flags,
+            nint AppId,
+            ref LUNICODE_STRING Buffer
+        );
         public delegate int pfnAreEqualReferenceAppId(nint pThis,
             uint Flags,
             nint pReference1,
@@ -208,6 +222,14 @@ namespace Smx.Winter
         public int HashAppId(uint flags, ManagedAppId appId, out ulong hash)
         {
             return intfAuthority.Hash(pAuthority, flags, appId.Value, out hash);
+        }
+
+        public int GenerateKeyForm(uint flags, ManagedAppId appId, out string keyForm)
+        {
+            using var mem = LUNICODE_STRING.CreateFromString(new string(' ', 256), out var buf);
+            var res = intfAuthority.GenerateKeyFormIntoBuffer(pAuthority, flags, appId.Value, ref buf);
+            keyForm = mem.ToPWSTR().ToString();
+            return res;
         }
 
         public Memory<byte> GetPatchDictionary()
@@ -403,5 +425,145 @@ namespace Smx.Winter
             }
             handle.Dispose();
         }
+
+        public string GetFormattedAppId(string appIdString)
+        {
+            // $FIXME: doesn't call the correct one (need LH format)
+
+            using var appId = AppIdParseDefinition(appIdString);
+            if (appId == null) throw new InvalidOperationException();
+
+            using var strMem = LUNICODE_STRING.CreateFromString(
+                new string(' ', 256), out var lunicodeBuffer
+            );
+
+            var pfnFormatWrapped = GetDebugWrappedDelegate<pfnGenerateKeyFormIntoBuffer>("GenerateKeyFormIntoBuffer");
+            pfnFormatWrapped(Authority, 0, appId.Value, ref lunicodeBuffer);
+            Console.WriteLine(lunicodeBuffer);
+            return strMem.ToPWSTR().ToString();
+
+            uint flags = 0;
+            // flags |= 1; // to include version
+            GenerateKeyForm(flags, appId, out var keyForm);
+            return keyForm;
+
+        }
+
+        public ulong GetAppIdHash(string appIdString)
+        {
+            //var appIdTest = "Microsoft-Windows-CoreSystem-RemoteFS-Client-Deployment-LanguagePack, Culture=it-IT, Version=10.0.19041.3570, PublicKeyToken=31bf3856ad364e35, ProcessorArchitecture=amd64, versionScope=NonSxS";
+
+            /** CRtlAppIdAuthority stuff **/
+#if false
+            if(false){
+                var appId_intf1 = Marshal.ReadIntPtr(appId - 8);
+                var appId_intf2 = appId - 16;
+
+                var appId_intf1_vtbl = Marshal.ReadIntPtr(appId_intf1);
+                var appId_intf2_vtbl = Marshal.ReadIntPtr(appId_intf2 + 0x10);
+
+                var pfnGetType = Marshal.ReadIntPtr(appId_intf1_vtbl + 24);
+                var pfnGetHashData = Marshal.ReadIntPtr(appId_intf2_vtbl + 40);
+
+                Console.WriteLine($"intf1: {appId_intf1:X}, intf2: {appId_intf2:X}");
+                Console.WriteLine($"vtbl1: {appId_intf1_vtbl:X}, vtbl2: {appId_intf2_vtbl:X}");
+
+                var appId_intf1_GetType = Marshal.GetDelegateForFunctionPointer<pfnAppId_GetType>(pfnGetType);
+                var appIdType = appId_intf1_GetType(appId_intf1);
+
+                var appId_intf2_GetData = Marshal.GetDelegateForFunctionPointer<pfnAppId_GetData>(pfnGetHashData);
+                appId_intf2_GetData(appId_intf2 + 16, out nint pHashData);
+
+                Console.WriteLine(appIdType);
+                Console.WriteLine($"hd is {pHashData:X}");
+
+                var hashData = Marshal.PtrToStructure<IdAuthorityData>(pHashData);
+            }
+#endif
+
+            var pfnHashWrapped = GetDebugWrappedDelegate<pfnHash>("Hash");
+
+            bool COMPARE_ORIGINAL = false;
+            bool USE_DEBUGGER_TRAP = false;
+            var SOFT_BP = false;
+
+            ulong hashValue = 0;
+
+            if(appIdString == "Avast.VC140.CRT, Culture=neutral, Type=win32, Version=14.0.27012.0, PublicKeyToken=fcc99ee6193ebbca, ProcessorArchitecture=amd64")
+            {
+                //USE_DEBUGGER_TRAP = true;
+                SOFT_BP = true;
+            }
+
+
+            int res = 0;
+            if (COMPARE_ORIGINAL)
+            {
+                using var appId = AppIdParseDefinition(appIdString);
+                if (appId == null) throw new InvalidOperationException();
+                // $FIXME: free
+
+                if (USE_DEBUGGER_TRAP)
+                {
+                    var trapAddr = Marshal.GetFunctionPointerForDelegate(pfnHashWrapped);
+                    Console.WriteLine($"BT AT {trapAddr:X}");
+                    res = pfnHashWrapped(Authority, 0, appId.Value, out hashValue);
+                } else
+                {
+                    res = HashAppId(0, appId, out hashValue);
+                }
+            }
+
+            var componentAppId = ComponentAppId.Parse(appIdString);
+
+            var nameHashFlags = 0
+                | NameHashFlags.Name
+                | NameHashFlags.PublicKeyToken
+                | NameHashFlags.Version
+                | NameHashFlags.ProcessorArchitecture;
+
+            nameHashFlags |= componentAppId.Culture switch
+            {
+                null => 0,
+                "neutral" => 0,
+                _ => NameHashFlags.Culture
+            };
+
+            nameHashFlags |= componentAppId.VersionScope switch
+            {
+                null => 0,
+                _ => NameHashFlags.VersionScope
+            };
+
+            nameHashFlags |= componentAppId.Type switch
+            {
+                null => 0,
+                _ => NameHashFlags.Type
+            };
+
+            //Debug.Assert((uint)nameHashFlags == 0x11F);
+            var ourHash = componentAppId.GetHash(nameHashFlags);
+
+            if (!COMPARE_ORIGINAL)
+            {
+                hashValue = ourHash;
+            }
+
+            Trace.WriteLine($"{res:X}, hash is {hashValue:X}");
+            if (SOFT_BP)
+            {
+                hashValue.ToString(); //$DEBUG
+            }
+            
+            Trace.WriteLine($"ours: {ourHash:X}");
+
+            if (ourHash != hashValue)
+            {
+                Console.WriteLine("!!!! DISCREPANCY");
+            }
+
+            return hashValue;
+        }
+
     }
 }

@@ -12,10 +12,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Winter
+namespace Smx.Winter.Cbs
 {
-    public class DeltaUnpacker
+    public class ObjectRefList
     {
-
+        public static IEnumerable<ObjectRef> FromRegistryKey(ManagedRegistryKey key)
+        {
+            return key.ValueNames.Where(v => v.Length > 1 && v[1] == '!')
+                .Select(v => new ObjectRef(v));
+        }
     }
 }

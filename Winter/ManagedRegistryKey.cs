@@ -1,3 +1,11 @@
+#region License
+/*
+ * Copyright (c) 2024 Stefano Moioli
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#endregion
 ﻿using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Immutable;
@@ -134,6 +142,23 @@ public class ManagedRegistryKey : IDisposable
 
         valueName = new string(pValueName.AsSpan().Slice(0, (int)cchValueName));
         return res;
+    }
+
+    public bool TryGetValue<T>(string valueName, out T value)
+    {
+        try
+        {
+            value = GetValue<T>(valueName);
+        }
+        catch (Win32Exception ex)
+        {
+            value = default;
+            if(ex.ErrorCode == (int)WIN32_ERROR.ERROR_OBJECT_NOT_FOUND)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     public T GetValue<T>(string valueName)

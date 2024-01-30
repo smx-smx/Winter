@@ -14,8 +14,8 @@ using System.Threading.Tasks;
 
 namespace Smx.Winter
 {
-    public class DeltaUnpacker
+    internal class Constants
     {
-
+        public const string MICROSOFT_PUBKEY = "31bf3856ad364e35";
     }
 }
