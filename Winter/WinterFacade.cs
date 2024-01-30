@@ -26,7 +26,7 @@ namespace Smx.Winter
             sc.AddSingleton<WindowsSystem>();
             sc.AddSingleton<ElevationService>();
             sc.AddSingleton<ComponentStoreService>();
-            sc.AddSingleton<ManifestReader>();
+            sc.AddSingleton<AssemblyReader>();
             sc.AddSingleton<ComponentFactory>();
             sc.AddSingleton<WcpLibraryAccessor>();
             sc.AddSingleton<Program>();

@@ -26,11 +26,11 @@ namespace Smx.Winter
         MsPatch
     }
 
-    public class ManifestReader
+    public class AssemblyReader
     {
         private Memory<byte> dictionary;
 
-        public ManifestReader(WcpLibraryAccessor wcp) {
+        public AssemblyReader(WcpLibraryAccessor wcp) {
             this.dictionary = wcp.ServicingStack.GetPatchDictionary();
         }
 
@@ -67,9 +67,9 @@ namespace Smx.Winter
             return (T?)serializer.Deserialize(xmlReader, events);
         }
 
-        public object? DecompressToObject(Stream source)
+        public object? ReadToObject(Stream source)
         {
-            var xmlData = DecompressToString(source);
+            var xmlData = ReadToString(source);
 
             var dumpAndDie = (string errorMessage) =>
             {
@@ -132,7 +132,7 @@ namespace Smx.Winter
             }
         }
 
-        public string DecompressToString(Stream stream)
+        public string ReadToString(Stream stream)
         {
             var head = new byte[5];
             stream.WithSavedPosition(() =>

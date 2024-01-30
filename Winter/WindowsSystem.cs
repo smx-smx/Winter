@@ -21,6 +21,21 @@ namespace Smx.Winter
             get => ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion").GetValue<string>("SystemRoot");
         }
 
+        public IEnumerable<string> AllUpdateModules
+        {
+            get
+            {
+                var modulesDir = Path.Combine(SystemRoot, "servicing", "Packages");
+                var filesIterator = Directory.EnumerateFiles(modulesDir, "*.mum", new EnumerationOptions
+                {
+                    MatchCasing = MatchCasing.CaseInsensitive,
+                    RecurseSubdirectories = false,
+                });
+
+                return filesIterator;
+            }
+        }
+
         public IEnumerable<string> AllManifests
         {
             get

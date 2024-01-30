@@ -451,8 +451,6 @@ namespace Smx.Winter
 
         public ulong GetAppIdHash(string appIdString)
         {
-            //var appIdTest = "Microsoft-Windows-CoreSystem-RemoteFS-Client-Deployment-LanguagePack, Culture=it-IT, Version=10.0.19041.3570, PublicKeyToken=31bf3856ad364e35, ProcessorArchitecture=amd64, versionScope=NonSxS";
-
             /** CRtlAppIdAuthority stuff **/
 #if false
             if(false){
@@ -489,11 +487,13 @@ namespace Smx.Winter
 
             ulong hashValue = 0;
 
-            if(appIdString == "Avast.VC140.CRT, Culture=neutral, Type=win32, Version=14.0.27012.0, PublicKeyToken=fcc99ee6193ebbca, ProcessorArchitecture=amd64")
+#if false
+            if(appIdString == "NAME, Culture=XXX, Type=XXX, Version=XXX, PublicKeyToken=XXX, ProcessorArchitecture=amd64")
             {
                 //USE_DEBUGGER_TRAP = true;
                 SOFT_BP = true;
             }
+#endif
 
 
             int res = 0;
@@ -501,7 +501,7 @@ namespace Smx.Winter
             {
                 using var appId = AppIdParseDefinition(appIdString);
                 if (appId == null) throw new InvalidOperationException();
-                // $FIXME: free
+                // $FIXME: free managed resource
 
                 if (USE_DEBUGGER_TRAP)
                 {
@@ -541,7 +541,6 @@ namespace Smx.Winter
                 _ => NameHashFlags.Type
             };
 
-            //Debug.Assert((uint)nameHashFlags == 0x11F);
             var ourHash = componentAppId.GetHash(nameHashFlags);
 
             if (!COMPARE_ORIGINAL)
@@ -559,7 +558,7 @@ namespace Smx.Winter
 
             if (ourHash != hashValue)
             {
-                Console.WriteLine("!!!! DISCREPANCY");
+                Trace.WriteLine("!!!! DISCREPANCY");
             }
 
             return hashValue;

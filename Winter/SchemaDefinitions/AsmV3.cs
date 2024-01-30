@@ -20,6 +20,7 @@ using Smx.Winter.SchemaDefinitions.CompatibilityV1;
 using Smx.Winter.SchemaDefinitions.CountersNS;
 using Smx.Winter.AsmInternalV1;
 using Smx.Winter.SchemaDefinitions.XMLSchema;
+using System.Runtime.CompilerServices;
 
 namespace Smx.Winter.SchemaDefinitions.AsmV3
 {
@@ -60,9 +61,18 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string DependencyType { get; set; }
     }
 
+    [XmlRoot(ElementName = "localizedStrings", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class LocalizedStrings
+    {
+        [XmlElement(ElementName = "string", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<String> String { get; set; }
+    }
+
     [XmlRoot(ElementName = "dependency", Namespace = "urn:schemas-microsoft-com:asm.v3")]
     public class Dependency
     {
+        [XmlElement(ElementName = "capabilityIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public CapabilityIdentity CapabilityIdentity { get; set; }
         [XmlElement(ElementName = "dependentAssembly", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public DependentAssembly DependentAssembly { get; set; }
         [XmlAttribute(AttributeName = "discoverable")]
@@ -75,6 +85,162 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string Optional { get; set; }
         [XmlAttribute(AttributeName = "offlineInstall")]
         public string OfflineInstall { get; set; }
+    }
+    
+    [XmlRoot(ElementName = "detectNone", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class DetectNone
+    {
+        [XmlAttribute(AttributeName = "default")]
+        public string Default { get; set; }
+    }
+
+    [XmlRoot(ElementName = "selectable", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Selectable
+    {
+        [XmlElement(ElementName = "detectNone", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public DetectNone DetectNone { get; set; }
+        [XmlAttribute(AttributeName = "disposition")]
+        public string Disposition { get; set; }
+        [XmlElement(ElementName = "customInformation", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public CustomInformation CustomInformation { get; set; }
+    }
+
+    [XmlRoot(ElementName = "declare", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Declare
+    {
+        [XmlAttribute(AttributeName = "type")]
+        public string Type { get; set; }
+        [XmlAttribute(AttributeName = "value")]
+        public string Value { get; set; }
+    }
+
+    [XmlRoot(ElementName = "applyTo", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class ApplyTo
+    {
+        [XmlAttribute(AttributeName = "type")]
+        public string Type { get; set; }
+        [XmlAttribute(AttributeName = "value")]
+        public string Value { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "require", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Require
+    {
+        [XmlAttribute(AttributeName = "type")]
+        public string Type { get; set; }
+        [XmlAttribute(AttributeName = "value")]
+        public string Value { get; set; }
+    }
+
+    [XmlRoot(ElementName = "MutualExclusionGroup", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class MutualExclusionGroup
+    {
+        [XmlAttribute(AttributeName = "Name")]
+        public string Name { get; set; }
+    }
+
+    [XmlRoot(ElementName = "MutualExclusion", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class MutualExclusion
+    {
+        [XmlElement(ElementName = "MutualExclusionGroup", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public MutualExclusionGroup MutualExclusionGroup { get; set; }
+    }
+
+    [XmlRoot(ElementName = "satelliteInfo", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class SatelliteInfo
+    {
+        [XmlElement(ElementName = "declare", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Declare Declare { get; set; }
+        [XmlElement(ElementName = "applyTo", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<ApplyTo> ApplyTo { get; set; }
+        [XmlElement(ElementName = "require", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<Require> Require { get; set; }
+    }
+
+    [XmlRoot(ElementName = "driverExtended", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class DriverExtended
+    {
+        [XmlAttribute(AttributeName = "mum", Namespace = "http://www.w3.org/2000/xmlns/")]
+        public string Mum { get; set; }
+        [XmlAttribute(AttributeName = "deviceInstallRequired")]
+        public string DeviceInstallRequired { get; set; }
+    }
+
+    [XmlRoot(ElementName = "driver", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Driver
+    {
+        [XmlElement(ElementName = "assemblyIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public AssemblyIdentity AssemblyIdentity { get; set; }
+        [XmlAttribute(AttributeName = "inf")]
+        public string Inf { get; set; }
+        [XmlAttribute(AttributeName = "ranking")]
+        public string Ranking { get; set; }
+        [XmlElement(ElementName = "driverExtended", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public DriverExtended DriverExtended { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "phoneInformation", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class PhoneInformation
+    {
+        [XmlAttribute(AttributeName = "phoneRelease")]
+        public string PhoneRelease { get; set; }
+        [XmlAttribute(AttributeName = "phoneOwner")]
+        public string PhoneOwner { get; set; }
+        [XmlAttribute(AttributeName = "phoneOwnerType")]
+        public string PhoneOwnerType { get; set; }
+        [XmlAttribute(AttributeName = "phoneComponent")]
+        public string PhoneComponent { get; set; }
+        [XmlAttribute(AttributeName = "phoneSubComponent")]
+        public string PhoneSubComponent { get; set; }
+        [XmlAttribute(AttributeName = "phoneGroupingKey")]
+        public string PhoneGroupingKey { get; set; }
+    }
+
+    [XmlRoot(ElementName = "Update", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class DeploysUpdate
+    {
+        [XmlAttribute(AttributeName = "Name")]
+        public string Name { get; set; }
+    }
+
+    [XmlRoot(ElementName = "update", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Update
+    {
+        [XmlElement(ElementName = "customInformation", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public CustomInformation CustomInformation { get; set; }
+        [XmlElement(ElementName = "driver", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Driver Driver { get; set; }
+        [XmlElement(ElementName = "selectable", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Selectable Selectable { get; set; }
+        [XmlElement(ElementName = "package", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Package Package { get; set; }
+        [XmlAttribute(AttributeName = "name")]
+        public string Name { get; set; }
+        [XmlAttribute(AttributeName = "displayName")]
+        public string DisplayName { get; set; }
+        [XmlAttribute(AttributeName = "description")]
+        public string Description { get; set; }
+        [XmlElement(ElementName = "component", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<Component> Component { get; set; }
+        [XmlElement(ElementName = "applicable", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<Applicable> Applicable { get; set; }
+        [XmlAttribute(AttributeName = "restart")]
+        public string Restart { get; set; }
+        [XmlElement(ElementName = "capability", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Capability Capability { get; set; }
+    }
+
+    [XmlRoot(ElementName = "packageExtended", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class PackageExtended
+    {
+        [XmlAttribute(AttributeName = "mum2", Namespace = "http://www.w3.org/2000/xmlns/")]
+        public string Mum2 { get; set; }
+        [XmlAttribute(AttributeName = "completelyOfflineCapable")]
+        public string CompletelyOfflineCapable { get; set; }
+        [XmlAttribute(AttributeName = "packageSize")]
+        public string PackageSize { get; set; }
     }
 
     [XmlRoot(ElementName = "securityDescriptor", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -170,6 +336,13 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
     {
         [XmlAttribute(AttributeName = "clsid")]
         public string Clsid { get; set; }
+    }
+
+    [XmlRoot(ElementName = "component", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Component
+    {
+        [XmlElement(ElementName = "assemblyIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public AssemblyIdentity AssemblyIdentity { get; set; }
     }
 
     [XmlRoot(ElementName = "systemProtection", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -338,6 +511,15 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string Id { get; set; }
         [XmlAttribute(AttributeName = "value")]
         public string Value { get; set; }
+
+        /** mum string, likely conflicting... (but it's in the same NS?!) **/
+
+        [XmlAttribute(AttributeName = "language")]
+        public string Language { get; set; }
+        [XmlAttribute(AttributeName = "displayName")]
+        public string DisplayName { get; set; }
+        [XmlAttribute(AttributeName = "description")]
+        public string Description { get; set; }
     }
 
     [XmlRoot(ElementName = "stringTable", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -655,13 +837,189 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string ServiceName { get; set; }
     }
 
-    [XmlRoot(ElementName = "package", Namespace = "urn:schemas-microsoft-com:asm.v3")]
-    public class Package
+    [XmlRoot(ElementName = "EnableSelectabilityForEdition", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class EnableSelectabilityForEdition
     {
         [XmlAttribute(AttributeName = "name")]
         public string Name { get; set; }
+    }
+
+    [XmlRoot(ElementName = "EnableSelectabilityForEditions", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class EnableSelectabilityForEditions
+    {
+        [XmlElement(ElementName = "EnableSelectabilityForEdition", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public EnableSelectabilityForEdition EnableSelectabilityForEdition { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "customInformation", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class CustomInformation
+    {
+        [XmlAttribute(AttributeName = "FWLink")]
+        public string FWLink { get; set; }
+        [XmlElement(ElementName = "ServerComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public ServerComponent ServerComponent { get; set; }
+        [XmlElement(ElementName = "noAutoMerge", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public string NoAutoMerge { get; set; }
+        [XmlElement(ElementName = "OptionalFeatures", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public OptionalFeatures OptionalFeatures { get; set; }
+        [XmlElement(ElementName = "Version", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Version Version { get; set; }
+        [XmlAttribute(AttributeName = "Version")]
+        public string VersionAttribute { get; set; }
+        [XmlAttribute(AttributeName = "mum2", Namespace = "http://www.w3.org/2000/xmlns/")]
+        public string Mum2 { get; set; }
+        [XmlAttribute(AttributeName = "PackageFormat")]
+        public string PackageFormat { get; set; }
+        [XmlAttribute(AttributeName = "PackageSupportedFeatures")]
+        public string PackageSupportedFeatures { get; set; }
+        [XmlElement(ElementName = "phoneInformation")]
+        public PhoneInformation PhoneInformation { get; set; }
+        [XmlElement(ElementName = "EnableSelectabilityForEditions", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public EnableSelectabilityForEditions EnableSelectabilityForEditions { get; set; }
+        [XmlAttribute(AttributeName = "LPTargetSPLevel")]
+        public string LPTargetSPLevel { get; set; }
+        [XmlAttribute(AttributeName = "LPType")]
+        public string LPType { get; set; }
+        [XmlAttribute(AttributeName = "SoftBlockLink")]
+        public string SoftBlockLink { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "parent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Parent
+    {
+        [XmlElement(ElementName = "parent")]
+        public Parent ParentRef { get; set; }
+        [XmlAttribute(AttributeName = "set")]
+        public string Set { get; set; }
+        [XmlAttribute(AttributeName = "name")]
+        public string Name { get; set; }
+        [XmlElement(ElementName = "assemblyIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<AssemblyIdentity> AssemblyIdentity { get; set; }
+        [XmlAttribute(AttributeName = "integrate")]
+        public string Integrate { get; set; }
+        [XmlAttribute(AttributeName = "disposition")]
+        public string Disposition { get; set; }
+        [XmlAttribute(AttributeName = "buildCompare")]
+        public string BuildCompare { get; set; }
+        [XmlAttribute(AttributeName = "distributionCompare")]
+        public string DistributionCompare { get; set; }
+        [XmlAttribute(AttributeName = "revisionCompare")]
+        public string RevisionCompare { get; set; }
+        [XmlAttribute(AttributeName = "serviceCompare")]
+        public string ServiceCompare { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "installerAssembly", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class InstallerAssembly
+    {
+        [XmlAttribute(AttributeName = "name")]
+        public string Name { get; set; }
+        [XmlAttribute(AttributeName = "version")]
+        public string Version { get; set; }
+        [XmlAttribute(AttributeName = "language")]
+        public string Language { get; set; }
+        [XmlAttribute(AttributeName = "processorArchitecture")]
+        public string ProcessorArchitecture { get; set; }
+        [XmlAttribute(AttributeName = "versionScope")]
+        public string VersionScope { get; set; }
+        [XmlAttribute(AttributeName = "publicKeyToken")]
+        public string PublicKeyToken { get; set; }
+    }
+
+    [XmlRoot(ElementName = "SystemService", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class SystemService
+    {
+        [XmlAttribute(AttributeName = "DefaultMonitoring")]
+        public string DefaultMonitoring { get; set; }
+        [XmlAttribute(AttributeName = "Name")]
+        public string Name { get; set; }
+    }
+
+    [XmlRoot(ElementName = "SystemServices", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class SystemServices
+    {
+        [XmlElement(ElementName = "SystemService", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public SystemService SystemService { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "detectUpdate", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class DetectUpdate
+    {
+        [XmlElement(ElementName = "parent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<Parent> Parent { get; set; }
+        [XmlElement(ElementName = "update", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Update Update { get; set; }
+    }
+
+    [XmlRoot(ElementName = "updateComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class UpdateComponent
+    {
+        [XmlElement(ElementName = "assemblyIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<AssemblyIdentity> AssemblyIdentity { get; set; }
+        [XmlAttribute(AttributeName = "elevate")]
+        public string Elevate { get; set; }
+    }
+
+    [XmlRoot(ElementName = "applicable", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Applicable
+    {
+        [XmlElement(ElementName = "detectUpdate", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<DetectUpdate> DetectUpdate { get; set; }
+        [XmlAttribute(AttributeName = "disposition")]
+        public string Disposition { get; set; }
+        [XmlElement(ElementName = "updateComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public UpdateComponent UpdateComponent { get; set; }
+    }
+
+    [XmlRoot(ElementName = "package", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Package
+    {
+        [XmlElement(ElementName = "localizedStrings", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public LocalizedStrings LocalizedStrings { get; set; }
+        [XmlElement(ElementName = "declareCapability")]
+        public DeclareCapability DeclareCapability { get; set; }
+        [XmlElement(ElementName = "customInformation", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public CustomInformation CustomInformation { get; set; }
+        [XmlAttribute(AttributeName = "name")]
+        public string Name { get; set; }
+        [XmlAttribute(AttributeName = "applicabilityEvaluation")]
+        public string ApplicabilityEvaluation { get; set; }
         [XmlAttribute(AttributeName = "position")]
         public string Position { get; set; }
+        [XmlElement(ElementName = "assemblyIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public AssemblyIdentity AssemblyIdentity { get; set; }
+        [XmlAttribute(AttributeName = "integrate")]
+        public string Integrate { get; set; }
+        [XmlAttribute(AttributeName = "identifier")]
+        public string Identifier { get; set; }
+        [XmlAttribute(AttributeName = "releaseType")]
+        public string ReleaseType { get; set; }
+        [XmlElement(ElementName = "parent")]
+        public List<Parent> Parent { get; set; }
+        [XmlElement(ElementName = "update")]
+        public List<Update> Update { get; set; }
+        [XmlAttribute(AttributeName = "contained")]
+        public string Contained { get; set; }
+        [XmlAttribute(AttributeName = "targetPartition")]
+        public string TargetPartition { get; set; }
+        [XmlAttribute(AttributeName = "binaryPartition")]
+        public string BinaryPartition { get; set; }
+        [XmlAttribute(AttributeName = "restart")]
+        public string Restart { get; set; }
+        [XmlElement(ElementName = "installerAssembly")]
+        public InstallerAssembly InstallerAssembly { get; set; }
+        [XmlElement(ElementName = "packageExtended", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public PackageExtended PackageExtended { get; set; }
+        [XmlAttribute(AttributeName = "selfUpdate")]
+        public string SelfUpdate { get; set; }
+        [XmlAttribute(AttributeName = "permanence")]
+        public string Permanence { get; set; }
+        [XmlAttribute(AttributeName = "psfName")]
+        public string PsfName { get; set; }
     }
 
     [XmlRoot(ElementName = "filter", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -2011,11 +2369,138 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string FrameworkVersion { get; set; }
     }
 
+    [XmlRoot(ElementName = "Version", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Version
+    {
+        [XmlAttribute(AttributeName = "Major")]
+        public string Major { get; set; }
+        [XmlAttribute(AttributeName = "Minor")]
+        public string Minor { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "Deploys", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Deploys
+    {
+        [XmlElement(ElementName = "Update", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<DeploysUpdate> Update { get; set; }
+    }
+
+    [XmlRoot(ElementName = "OptionalCompanionFor", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class OptionalCompanionFor
+    {
+        [XmlAttribute(AttributeName = "Type")]
+        public string Type { get; set; }
+        [XmlAttribute(AttributeName = "UniqueName")]
+        public string UniqueName { get; set; }
+    }
+
+    [XmlRoot(ElementName = "Relationships", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Relationships
+    {
+        [XmlElement(ElementName = "OptionalCompanionFor", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public OptionalCompanionFor OptionalCompanionFor { get; set; }
+    }
+
+    [XmlRoot(ElementName = "NonAncestorDependencies", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class NonAncestorDependencies
+    {
+        [XmlElement(ElementName = "ServerComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public List<ServerComponent> ServerComponent { get; set; }
+    }
+
+    [XmlRoot(ElementName = "ServerComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class ServerComponent
+    {
+        [XmlElement(ElementName = "MutualExclusion", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public MutualExclusion MutualExclusion { get; set; }
+        [XmlElement(ElementName = "Version", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Version Version { get; set; }
+        [XmlElement(ElementName = "Deploys", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Deploys Deploys { get; set; }
+        [XmlAttribute(AttributeName = "Description")]
+        public string Description { get; set; }
+        [XmlAttribute(AttributeName = "DisplayName")]
+        public string DisplayName { get; set; }
+        [XmlAttribute(AttributeName = "Id")]
+        public string Id { get; set; }
+        [XmlAttribute(AttributeName = "Type")]
+        public string Type { get; set; }
+        [XmlAttribute(AttributeName = "UniqueName")]
+        public string UniqueName { get; set; }
+        [XmlAttribute(AttributeName = "InstallWithParentByDefault")]
+        public string InstallWithParentByDefault { get; set; }
+        [XmlAttribute(AttributeName = "Parent")]
+        public string Parent { get; set; }
+        [XmlElement(ElementName = "NonAncestorDependencies", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public NonAncestorDependencies NonAncestorDependencies { get; set; }
+        [XmlElement(ElementName = "Relationships", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Relationships Relationships { get; set; }
+        [XmlElement(ElementName = "SystemServices", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public SystemServices SystemServices { get; set; }
+    }
+
+    [XmlRoot(ElementName = "capabilityIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class CapabilityIdentity
+    {
+        [XmlAttribute(AttributeName = "name")]
+        public string Name { get; set; }
+        [XmlAttribute(AttributeName = "version")]
+        public string Version { get; set; }
+        [XmlAttribute(AttributeName = "language")]
+        public string Language { get; set; }
+    }
+
+    [XmlRoot(ElementName = "capability", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Capability
+    {
+        [XmlElement(ElementName = "capabilityIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public CapabilityIdentity CapabilityIdentity { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "declareCapability", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class DeclareCapability
+    {
+        [XmlElement(ElementName = "capability", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Capability Capability { get; set; }
+        [XmlElement(ElementName = "dependency", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Dependency Dependency { get; set; }
+        [XmlElement(ElementName = "satelliteInfo", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public SatelliteInfo SatelliteInfo { get; set; }
+    }
+
+    [XmlRoot(ElementName = "SettingsPageOptions", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class SettingsPageOptions
+    {
+        [XmlAttribute(AttributeName = "Visibility")]
+        public string Visibility { get; set; }
+        [XmlAttribute(AttributeName = "FeatureType")]
+        public string FeatureType { get; set; }
+        [XmlAttribute(AttributeName = "ManageFeatureSettings")]
+        public string ManageFeatureSettings { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "OptionalFeatures", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class OptionalFeatures
+    {
+        [XmlElement(ElementName = "SettingsPageOptions", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public SettingsPageOptions SettingsPageOptions { get; set; }
+        [XmlAttribute(AttributeName = "SchemaVersion")]
+        public string SchemaVersion { get; set; }
+    }
+
+
     [XmlRoot(ElementName = "assembly", Namespace = "urn:schemas-microsoft-com:asm.v3")]
     public class Assembly
     {
         [XmlElement(ElementName = "assemblyIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public AssemblyIdentity AssemblyIdentity { get; set; }
+        [XmlAttribute(AttributeName = "supportInformation")]
+        public string SupportInformation { get; set; }
+        [XmlElement(ElementName = "package", Namespace="urn:schemas-microsoft-com:asm.v3")]
+		public Package Package { get; set; }
         [XmlElement(ElementName = "deployment", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public Deployment Deployment { get; set; }
         [XmlElement(ElementName = "dependency", Namespace = "urn:schemas-microsoft-com:asm.v3")]

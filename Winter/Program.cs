@@ -64,7 +64,7 @@ public class Program
     private ElevationService elevator;
     private ComponentStoreService store;
     private readonly WcpLibrary servicingStack;
-    private readonly ManifestReader decompressor;
+    private readonly AssemblyReader asmReader;
 
 
     public Program(
@@ -72,13 +72,13 @@ public class Program
         ElevationService elevator,
         ComponentStoreService store,
         WcpLibraryAccessor wcp,
-        ManifestReader decompressor
+        AssemblyReader decompressor
     ) {
         this.windows = windows;
         this.elevator = elevator;
         this.store = store;
         this.servicingStack = wcp.ServicingStack;
-        this.decompressor = decompressor;
+        this.asmReader = decompressor;
     }
 
     public void Initialize()
@@ -116,11 +116,11 @@ public class Program
             using var stream = new FileStream(manifest, FileMode.Open);
             if (parse)
             {
-                var asm = decompressor.DecompressToObject(stream);
+                var asm = asmReader.ReadToObject(stream);
             }
             else
             {
-                var manifestData = decompressor.DecompressToString(stream);
+                var manifestData = asmReader.ReadToString(stream);
                 var outPath = Path.Combine(basePath, Path.GetFileName(manifest));
                 File.WriteAllText(outPath, manifestData);
             }
@@ -156,8 +156,15 @@ public class Program
             }
         }
         return;
+    }
 
-        
+    public void ParseAllUpdateModules()
+    {
+        foreach (string item in windows.AllUpdateModules)
+        {
+            using var stream = new FileStream(item, FileMode.Open, FileAccess.Read);
+            var obj = asmReader.ReadToObject(stream);
+        }
     }
 
     public static void Main(string[] args)
@@ -169,7 +176,8 @@ public class Program
         p.Initialize();
         //p.elevator.RunAsTrustedInstaller("cmd.exe");
         //p.TestAllManifests(true);
-        p.TestCBS();
+        //p.TestCBS();
+        p.ParseAllUpdateModules();
 
         //XmlMerger.ToolMain([@"S:\out", @"S:\merged.xml"]);
     }
