@@ -21,7 +21,16 @@ namespace Smx.Winter
             get => ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion").GetValue<string>("SystemRoot");
         }
 
-        public IEnumerable<string> AllUpdateModules
+        public IEnumerable<string> RegisteredModules
+        {
+            get
+            {
+                using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages");
+                return hkey.KeyNames;
+            }
+        }
+
+        public IEnumerable<string> AllModules
         {
             get
             {

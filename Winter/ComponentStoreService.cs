@@ -71,14 +71,8 @@ namespace Smx.Winter
         public IEnumerable<string> Components => hkey.KeyNames;
     }
 
-    public partial class ComponentStoreService
+    public partial class ComponentStoreService(WindowsSystem windows, AssemblyReader asmReader)
     {
-        private WindowsSystem windows;
-
-        public ComponentStoreService(WindowsSystem windows) {
-            this.windows = windows;
-        }
-
         private void PrintHashList(string hashList)
         {
             var chunks = hashList.Split(['#']);
@@ -147,7 +141,7 @@ namespace Smx.Winter
 
         private void Test2()
         {
-            var cmp = ComponentAppId.Parse("Microsoft.Windows.Common-Controls.Resources, Culture=bg-BG, Type=win32, Version=5.82.19041.1, PublicKeyToken=6595b64144ccf1df, ProcessorArchitecture=x86");
+            var cmp = ComponentAppId.FromAppId("Microsoft.Windows.Common-Controls.Resources, Culture=bg-BG, Type=win32, Version=5.82.19041.1, PublicKeyToken=6595b64144ccf1df, ProcessorArchitecture=x86");
 
         }
 
@@ -186,6 +180,29 @@ namespace Smx.Winter
                 {
                     var deployment = Deployment.FromRegistryKey(hkey.OpenChildKey(k));
                     yield return new DeploymentNode(deployment);
+                }
+            }
+        }
+
+        public IEnumerable<object> Packages
+        {
+            get
+            {
+                using var hkey = ManagedRegistryKey.Open(Registry.KEY_PACKAGES);
+                foreach(var k in hkey.KeyNames)
+                {
+                    var path = Path.Combine(windows.SystemRoot, "servicing", "Packages", $"{k}.mum");
+                    if (!File.Exists(path)) continue;
+
+                    object? pkg;
+                    using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+                    {
+                        pkg = asmReader.ReadToObject(stream);
+                    }
+                    if (pkg != null)
+                    {
+                        yield return pkg;
+                    }
                 }
             }
         }

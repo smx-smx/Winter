@@ -1122,9 +1122,9 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         [XmlAttribute(AttributeName = "rules")]
         public string Rules { get; set; }
         [XmlElement(ElementName = "migXml", Namespace = "")]
-        public MigXml MigXml { get; set; }
+        public MigXml MigXml_1 { get; set; }
         [XmlElement(ElementName = "migXml", Namespace = "urn:schemas-microsoft-com:asm.v3")]
-        public MigXml2 MigXml2 { get; set; }
+        public MigXml2 MigXml_2 { get; set; }
     }
 
     [XmlRoot(ElementName = "pattern", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -1180,9 +1180,9 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         [XmlElement(ElementName = "machineSpecific", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public MachineSpecific MachineSpecific { get; set; }
         [XmlElement(ElementName = "migXml", Namespace = "")]
-        public MigXml MigXml { get; set; }
+        public MigXml MigXml_1 { get; set; }
         [XmlElement(ElementName = "migXml", Namespace = "urn:schemas-microsoft-com:asm.v3")]
-        public MigXml2 MigXml2 { get; set; }
+        public MigXml2 MigXml_2 { get; set; }
         [XmlAttribute(AttributeName = "rules")]
         public string Rules { get; set; }
     }
@@ -1225,11 +1225,13 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         [XmlElement(ElementName = "supportedComponents", Namespace = "")]
         public SupportedComponents2 SupportedComponents2 { get; set; }
         [XmlElement(ElementName = "migXml", Namespace = "")]
-        public List<MigXml> MigXml { get; set; }
+        public List<MigXml> MigXml_1 { get; set; }
+        [XmlElement(ElementName = "migxml")]
+        public Migxml Migxml_2 { get; set; }
         [XmlElement(ElementName = "migxml", Namespace = "")]
-        public Migxml Migxml2 { get; set; }
+        public Migxml Migxml_3 { get; set; }
         [XmlElement(ElementName = "migXml", Namespace = "urn:schemas-microsoft-com:asm.v3")]
-        public MigXml2 MigXml3 { get; set; }
+        public MigXml2 MigXml_4 { get; set; }
         [XmlElement(ElementName = "supportedComponents", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public SupportedComponents SupportedComponents { get; set; }
         [XmlElement(ElementName = "machineSpecific", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -1240,8 +1242,6 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public Plugin2 Plugin2 { get; set; }
         [XmlElement(ElementName = "uninstall", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public Uninstall Uninstall { get; set; }
-        [XmlElement(ElementName = "migxml")]
-        public Migxml Migxml { get; set; }
         [XmlAttribute(AttributeName = "scope")]
         public string Scope { get; set; }
         [XmlAttribute(AttributeName = "settingsVersion")]
@@ -1584,103 +1584,103 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
     public class FirewallRule
     {
         [XmlAttribute(AttributeName = "Action")]
-        public string Action { get; set; }
+        public string Action_1 { get; set; }
         [XmlAttribute(AttributeName = "action")]
-        public string Action2 { get; set; }
+        public string Action_2 { get; set; }
         [XmlAttribute(AttributeName = "Active")]
-        public string Active { get; set; }
+        public string Active_1 { get; set; }
         [XmlAttribute(AttributeName = "active")]
-        public string Active2 { get; set; }
+        public string Active_2 { get; set; }
         [XmlAttribute(AttributeName = "Binary")]
-        public string Binary { get; set; }
+        public string Binary_1 { get; set; }
         [XmlAttribute(AttributeName = "binary")]
-        public string Binary2 { get; set; }
+        public string Binary_2 { get; set; }
         [XmlAttribute(AttributeName = "Desc")]
-        public string Desc { get; set; }
+        public string Desc_1 { get; set; }
         [XmlAttribute(AttributeName = "desc")]
-        public string Desc2 { get; set; }
+        public string Desc_2 { get; set; }
         [XmlAttribute(AttributeName = "Dir")]
-        public string Dir { get; set; }
+        public string Dir_1 { get; set; }
         [XmlAttribute(AttributeName = "dir")]
-        public string Dir2 { get; set; }
+        public string Dir_2 { get; set; }
         [XmlAttribute(AttributeName = "Group")]
-        public string Group { get; set; }
+        public string Group_1 { get; set; }
         [XmlAttribute(AttributeName = "group")]
-        public string Group2 { get; set; }
+        public string Group_2 { get; set; }
         [XmlAttribute(AttributeName = "InternalName")]
-        public string InternalName { get; set; }
+        public string InternalName1 { get; set; }
         [XmlAttribute(AttributeName = "internalName")]
         public string InternalName2 { get; set; }
         [XmlAttribute(AttributeName = "Name")]
-        public string Name { get; set; }
+        public string Name_1 { get; set; }
         [XmlAttribute(AttributeName = "name")]
-        public string Name2 { get; set; }
+        public string Name_2 { get; set; }
         [XmlAttribute(AttributeName = "Protocol")]
-        public string Protocol { get; set; }
+        public string Protocol1 { get; set; }
         [XmlAttribute(AttributeName = "protocol")]
         public string Protocol2 { get; set; }
         [XmlAttribute(AttributeName = "lPort")]
-        public string LPort { get; set; }
+        public string LPort_1 { get; set; }
 
         [XmlAttribute(AttributeName = "LPort")]
-        public string LPort2 { get; set; }
+        public string LPort_2 { get; set; }
         [XmlAttribute(AttributeName = "svc")]
-        public string Svc { get; set; }
+        public string Svc_1 { get; set; }
         [XmlAttribute(AttributeName = "Svc")]
-        public string Svc2 { get; set; }
+        public string Svc_2 { get; set; }
 
         [XmlAttribute(AttributeName = "lport")]
-        public string Lport { get; set; }
+        public string Lport_3 { get; set; }
         [XmlAttribute(AttributeName = "Lport")]
-        public string Lport2 { get; set; }
+        public string Lport_4 { get; set; }
         [XmlAttribute(AttributeName = "Edge")]
-        public string Edge { get; set; }
+        public string Edge_1 { get; set; }
         [XmlAttribute(AttributeName = "edge")]
         public string Edge2 { get; set; }
         [XmlAttribute(AttributeName = "edgedefer")]
-        public string Edgedefer { get; set; }
+        public string Edgedefer_1 { get; set; }
         [XmlAttribute(AttributeName = "Rport")]
         public string Rport { get; set; }
         [XmlAttribute(AttributeName = "Profile")]
-        public string Profile { get; set; }
+        public string Profile_1 { get; set; }
         [XmlAttribute(AttributeName = "profile")]
-        public string Profile2 { get; set; }
+        public string Profile_2 { get; set; }
         [XmlAttribute(AttributeName = "RA4")]
-        public string RA4 { get; set; }
+        public string RA4_1 { get; set; }
         [XmlAttribute(AttributeName = "RA6")]
-        public string RA6 { get; set; }
+        public string RA6_1 { get; set; }
         [XmlAttribute(AttributeName = "RPort")]
-        public string RPort { get; set; }
+        public string RPort_1 { get; set; }
         [XmlAttribute(AttributeName = "rport")]
-        public string RPort2 { get; set; }
+        public string RPort_2 { get; set; }
         [XmlAttribute(AttributeName = "xmlns")]
         public string Xmlns { get; set; }
         [XmlAttribute(AttributeName = "icmp4")]
-        public string Icmp4 { get; set; }
+        public string Icmp4_1 { get; set; }
         [XmlAttribute(AttributeName = "icmp6")]
-        public string Icmp6 { get; set; }
+        public string Icmp6_1 { get; set; }
         [XmlAttribute(AttributeName = "TTK")]
-        public string TTK { get; set; }
+        public string TTK_2 { get; set; }
         [XmlAttribute(AttributeName = "LUAuth")]
-        public string LUAuth { get; set; }
+        public string LUAuth_2 { get; set; }
         [XmlAttribute(AttributeName = "internalname")]
         public string Internalname { get; set; }
         [XmlAttribute(AttributeName = "ra4")]
-        public string Ra4 { get; set; }
+        public string Ra4_2 { get; set; }
         [XmlAttribute(AttributeName = "ra6")]
-        public string Ra6 { get; set; }
+        public string Ra6_2 { get; set; }
         [XmlAttribute(AttributeName = "EdgeDefer")]
-        public string EdgeDefer { get; set; }
+        public string EdgeDefer_2 { get; set; }
         [XmlAttribute(AttributeName = "ICMP6")]
-        public string ICMP6 { get; set; }
+        public string ICMP6_2 { get; set; }
         [XmlAttribute(AttributeName = "LA6")]
         public string LA6 { get; set; }
         [XmlAttribute(AttributeName = "ICMP4")]
-        public string ICMP4 { get; set; }
+        public string ICMP4_2 { get; set; }
         [XmlAttribute(AttributeName = "ttk")]
-        public string Ttk { get; set; }
+        public string Ttk_1 { get; set; }
         [XmlAttribute(AttributeName = "luauth")]
-        public string Luauth { get; set; }
+        public string Luauth_1 { get; set; }
     }
 
     [XmlRoot(ElementName = "sysprepOrder", Namespace = "urn:schemas-microsoft-com:asm.v3")]

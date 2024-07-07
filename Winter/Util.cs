@@ -11,11 +11,46 @@ using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Security;
 using Windows.Win32.Foundation;
+using Windows.Win32.System.Memory;
 
 namespace Smx.Winter;
 
 public class Util
 {
+
+    /// <summary>
+    /// wraps a function pointer in a trampoline that stalls the call
+    /// until a debugger removes the endless loop
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    public static T MakeDebuggerTrap<T>(nint address)
+    {
+        var mem = new byte[16];
+        var wr = new BinaryWriter(new MemoryStream(mem));
+        // debugger trap
+        wr.Write((ushort)0xFEEB);
+        wr.Write((byte)0x68);
+        wr.Write((uint)(address & 0xFFFFFFFF));
+        wr.Write((uint)0x042444C7);
+        wr.Write((uint)(address >> 32) & 0xFFFFFFFF);
+        wr.Write((byte)0xC3);
+
+        nint pMem;
+        unsafe
+        {
+            pMem = new nint(PInvoke.VirtualAlloc(null, (uint)mem.Length, 0
+                   | VIRTUAL_ALLOCATION_TYPE.MEM_COMMIT
+                   | VIRTUAL_ALLOCATION_TYPE.MEM_RESERVE,
+                   PAGE_PROTECTION_FLAGS.PAGE_EXECUTE_READWRITE));
+        }
+        Marshal.Copy(mem, 0, pMem, mem.Length);
+
+        return Marshal.GetDelegateForFunctionPointer<T>(pMem);
+    }
+
+
     public static SafeFileHandle OpenProcessToken(SafeFileHandle hProc, TOKEN_ACCESS_MASK flags)
     {
         PInvoke.OpenProcessToken(hProc, flags, out var hToken);

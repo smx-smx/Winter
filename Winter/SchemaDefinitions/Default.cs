@@ -68,9 +68,9 @@ namespace Smx.Winter.SchemaDefinitions.DefaultNS
     public class Include
     {
         [XmlElement(ElementName = "objectSet")]
-        public List<ObjectSet> ObjectSet { get; set; }
+        public List<ObjectSet> ObjectSet_1 { get; set; }
         [XmlElement(ElementName = "objectset")]
-        public Objectset Objectset { get; set; }
+        public Objectset Objectset_2 { get; set; }
     }
 
     [XmlRoot(ElementName = "exclude")]
@@ -230,7 +230,7 @@ namespace Smx.Winter.SchemaDefinitions.DefaultNS
         [XmlElement(ElementName = "detects")]
         public Detects Detects { get; set; }
         [XmlElement(ElementName = "destinationCleanup")]
-        public DestinationCleanup DestinationCleanup { get; set; }
+        public DestinationCleanup DestinationCleanup_2 { get; set; }
         [XmlElement(ElementName = "processing")]
         public List<Processing> Processing { get; set; }
         [XmlElement(ElementName = "addObjects")]
@@ -248,15 +248,15 @@ namespace Smx.Winter.SchemaDefinitions.DefaultNS
         [XmlElement(ElementName = "environment")]
         public Environment Environment { get; set; }
         [XmlAttribute(AttributeName = "rules")]
-        public string _rules { get; set; }
+        public string Rules_1 { get; set; }
         [XmlElement(ElementName = "objectSet")]
         public ObjectSet ObjectSet { get; set; }
         [XmlElement(ElementName = "rules")]
-        public Rules _Rules { get; set; }
+        public Rules Rules_2 { get; set; }
         [XmlElement(ElementName = "trackChanges")]
         public TrackChanges TrackChanges { get; set; }
         [XmlElement(ElementName = "destinationcleanup")]
-        public Destinationcleanup Destinationcleanup { get; set; }
+        public Destinationcleanup Destinationcleanup_1 { get; set; }
 
         /// <summary>
         /// probably a mistake? reads literally `"` in the manifest file

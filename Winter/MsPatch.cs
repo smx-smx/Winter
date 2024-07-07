@@ -17,12 +17,17 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Win32;
+using Windows.Win32.Foundation;
 using Windows.Win32.System.ApplicationInstallationAndServicing;
 
 namespace Smx.Winter
 {
     public class MsPatch
     {
+        private delegate Windows.Win32.Foundation.BOOL fnApplyDeltaB(
+            long ApplyFlags,
+            DELTA_INPUT Source, DELTA_INPUT Delta, out DELTA_OUTPUT lpTarget);
+
         private const uint PA30_MAGIC = 0x50413330;
 
         private const long DELTA_FLAG_NONE = 0x00000000;
@@ -47,6 +52,11 @@ namespace Smx.Winter
                 Editable = false
             };
 
+            var hLib = PInvoke.LoadLibrary("msdelta.dll");
+            var pfnApplyDeltaB = PInvoke.GetProcAddress(hLib, "ApplyDeltaB");
+            var pfnTrap = Util.MakeDebuggerTrap<fnApplyDeltaB>(pfnApplyDeltaB);
+
+            var DEBUG = false;
 
             DELTA_OUTPUT lpTarget;
             unsafe
@@ -56,7 +66,15 @@ namespace Smx.Winter
                 {
                     dictIn.Anonymous.lpcStart = pInput;
                     patchIn.Anonymous.lpcStart = pPatch;
-                    if (!PInvoke.ApplyDeltaB(DELTA_FLAG_NONE, dictIn, patchIn, out lpTarget))
+                    BOOL res;
+                    if (DEBUG)
+                    {
+                        res = pfnTrap(DELTA_FLAG_NONE, dictIn, patchIn, out lpTarget);
+                    } else
+                    {
+                        res = PInvoke.ApplyDeltaB(DELTA_FLAG_NONE, dictIn, patchIn, out lpTarget);
+                    }
+                    if (!res)
                     {
                         throw new Win32Exception(Marshal.GetLastWin32Error());
                     }

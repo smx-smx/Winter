@@ -37,6 +37,12 @@ namespace Smx.Winter
             }
         }
 
+        private string GetCurrentWCPVersion()
+        {
+            using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Version");
+            return hkey.ValueNames.First();
+        }
+
         private string GetLastWCPVersionToAccessStore()
         {
             using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\COMPONENTS\ServicingStackVersions");

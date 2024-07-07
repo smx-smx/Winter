@@ -20,6 +20,7 @@ namespace Smx.Winter.Cbs
         public const string KEY_CATALOGS = @"HKEY_LOCAL_MACHINE\COMPONENTS\CanonicalData\Catalogs";
         public const string KEY_COMPONENTS = @"HKEY_LOCAL_MACHINE\COMPONENTS\DerivedData\Components";
         public const string KEY_DEPLOYMENTS = @"HKEY_LOCAL_MACHINE\COMPONENTS\CanonicalData\Deployments";
+        public const string KEY_PACKAGES = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages";
 
         public static CatalogNode OpenCatalog(string id)
         {

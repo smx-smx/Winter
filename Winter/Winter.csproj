@@ -18,5 +18,6 @@
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.49-beta">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Smx.PDBSharp" Version="1.0.0-alpha5" />
   </ItemGroup>
 </Project>

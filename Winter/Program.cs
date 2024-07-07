@@ -9,6 +9,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
+using Smx.SharpIO;
+using Smx.Winter.MsDelta;
 using Smx.Winter.Tools;
 using System;
 using System.Collections.ObjectModel;
@@ -148,7 +150,7 @@ public class Program
             Console.WriteLine(cmp);
             Console.WriteLine(cmp.Identity);
 
-            var formatted = ComponentAppId.Parse(cmp.Identity).GetSxSName(compact: true);
+            var formatted = ComponentAppId.FromAppId(cmp.Identity).GetSxSName(compact: true);
             var manifestPath = Path.Combine(windows.SystemRoot, "WinSxS", "Manifests", $"{formatted}.manifest");
             if (!File.Exists(manifestPath))
             {
@@ -160,7 +162,7 @@ public class Program
 
     public void ParseAllUpdateModules()
     {
-        foreach (string item in windows.AllUpdateModules)
+        foreach (string item in windows.AllModules)
         {
             using var stream = new FileStream(item, FileMode.Open, FileAccess.Read);
             var obj = asmReader.ReadToObject(stream);
@@ -169,7 +171,7 @@ public class Program
 
     public static void Main(string[] args)
     {
-        using var winter = new WinterFacade();
+        var winter = new WinterFacade();
         winter.Initialize();
 
         var p = winter.Services.GetRequiredService<Program>();
@@ -177,8 +179,18 @@ public class Program
         //p.elevator.RunAsTrustedInstaller("cmd.exe");
         //p.TestAllManifests(true);
         //p.TestCBS();
-        p.ParseAllUpdateModules();
-
+        //winter.Services.GetRequiredService<DeltaUnpacker>();
+        //p.ParseAllUpdateModules();
         //XmlMerger.ToolMain([@"S:\out", @"S:\merged.xml"]);
+
+        //using var patch = MFile.Open(args[0], FileMode.Open, FileAccess.Read, FileShare.Read);
+        //new PatchReader(patch).Read();
+
+        var wcpAcc = winter.Services.GetRequiredService<WcpLibraryAccessor>();
+
+        using var input = MFile.Open(args[0], FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var stream = new SpanStream(input);
+        var decoded = new AssemblyReader(wcpAcc).ReadToString(stream);
+        Console.WriteLine(decoded);
     }
 }

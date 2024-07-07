@@ -15,27 +15,33 @@ using System.Threading.Tasks;
 
 namespace Smx.Winter
 {
-    public class WinterFacade : IDisposable
+    public class WinterFacade
     {
-        public ServiceProvider Services { get; private set; }
+        public IServiceProvider Services { get; private set; }
 
 
-        private static ServiceProvider BuildServices()
+        public static void BuildServices(IServiceCollection sc)
         {
-            var sc = new ServiceCollection();
             sc.AddSingleton<WindowsSystem>();
             sc.AddSingleton<ElevationService>();
             sc.AddSingleton<ComponentStoreService>();
             sc.AddSingleton<AssemblyReader>();
             sc.AddSingleton<ComponentFactory>();
             sc.AddSingleton<WcpLibraryAccessor>();
+            sc.AddSingleton<DeltaUnpacker>();
             sc.AddSingleton<Program>();
-            var sp = sc.BuildServiceProvider();
-            return sp;
         }
 
-        public WinterFacade() {
-            Services = BuildServices();
+        public WinterFacade(IServiceProvider? services = null) {
+            if (services == null)
+            {
+                var sc = new ServiceCollection();
+                BuildServices(sc);
+                Services = sc.BuildServiceProvider();
+            } else
+            {
+                Services = services;
+            }
         }
 
         public IEnumerable<string> AllManifests
@@ -54,11 +60,6 @@ namespace Smx.Winter
 
             var p = Services.GetRequiredService<Program>();
             p.Initialize();
-        }
-
-        public void Dispose()
-        {
-            Services.Dispose();
         }
     }
 }
