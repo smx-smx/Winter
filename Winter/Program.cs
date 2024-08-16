@@ -18,6 +18,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -171,30 +172,67 @@ public class Program
         }
     }
 
-    public static void TestMsdeltaNative(string[] args)
+    static bool TryTake(IEnumerator<string> it, [MaybeNullWhen(false)] out string arg)
     {
-        int argi = 1;
-        var name = args[argi++];
-        var code = File.ReadAllText(args[argi++]);
+        if (!it.MoveNext())
+        {
+            arg = null;
+            return false;
+        }
 
-        var nInputs = args.Length - (argi + 1);
-        var inputs = args.Skip(argi).Take(nInputs).Select(File.ReadAllBytes).ToArray();
-        
-        argi += nInputs;
+        arg = it.Current;
+        return true;
+    }
 
-        var nOutputs = args.Length - argi;
-        var outputs = new byte[nOutputs][];
+    public static void TestMsdeltaNative(IEnumerable<string> args)
+    {
+        var it = args.GetEnumerator();
 
-        var outputFiles = args.Skip(argi).Take(nOutputs).ToArray();
+        if (!TryTake(it, out var name)
+            || !TryTake(it, out var codeFile))
+        {
+            throw new InvalidEnumArgumentException();
+        }
+
+        var inputs = new List<byte[]>();
+        var outputFiles = new List<string>();
+
+        bool inOutSel = true;
+
+        while (it.MoveNext())
+        {
+            var arg = it.Current;
+            switch (arg)
+            {
+                case "-i":
+                    inOutSel = true;
+                    break;
+                case "-o":
+                    inOutSel = false;
+                    break;
+                default:
+                    if (inOutSel)
+                    {
+                        inputs.Add(File.ReadAllBytes(arg));
+                    } else
+                    {
+                        outputFiles.Add(arg);
+                    }
+                    break;
+            }
+        }
+
+        var code = File.ReadAllText(codeFile);
+        var outputs = new byte[outputFiles.Count][];
         
         var msdelta = new NativeMSDelta();
         msdelta.AddComponent(name, code);
-        if(!msdelta.Call(name, inputs, outputs))
+        if(!msdelta.Call(name, inputs.ToArray(), outputs))
         {
             throw new InvalidOperationException("script call failed");
         }
 
-        for(int i = 0; i < nOutputs; i++)
+        for(int i = 0; i < outputFiles.Count; i++)
         {
             File.WriteAllBytes(outputFiles[i], outputs[i]);
         }
@@ -206,7 +244,7 @@ public class Program
         bool handled = true;
         switch (args[0]) {
             case "msdelta-script":
-                TestMsdeltaNative(args);
+                TestMsdeltaNative(args.Skip(1));
                 break;
             case "xml-merge":
                 XmlMerger.ToolMain([@"S:\out", @"S:\merged.xml"]);
