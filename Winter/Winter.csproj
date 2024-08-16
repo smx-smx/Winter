@@ -20,4 +20,10 @@
     </PackageReference>
     <PackageReference Include="Smx.PDBSharp" Version="1.0.0-alpha5" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="symsrv.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

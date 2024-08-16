@@ -88,3 +88,14 @@ GetProcessWindowStation
 GetUserObjectInformation
 
 HeapAlloc
+
+// dbghelp
+SymSetOptions
+SymInitialize
+SymLoadModuleEx
+SymFromName
+SYMOPT_DEFERRED_LOADS
+SYMOPT_DEBUG
+SYMBOL_INFO
+MAX_SYM_NAME
+SymCleanup
