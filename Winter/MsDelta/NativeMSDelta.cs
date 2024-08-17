@@ -762,8 +762,22 @@ namespace Smx.Winter.MsDelta
             Console.Out.Flush();
         }
 
+        private static void CheckMsDeltaVersion()
+        {
+            var dllPath = Path.Combine(new WindowsSystem().SystemRoot, "System32", "msdelta.dll");
+            var ver = FileVersionInfo.GetVersionInfo(dllPath);
+            var verString = string.Format("{0}.{1}.{2}.{3}", ver.FileMajorPart, ver.FileMinorPart, ver.FileBuildPart, ver.FilePrivatePart);
+            if (verString != "5.0.1.1")
+            {
+                throw new NotSupportedException($"This msdelta version ({verString}) is unsupported. Remove this exception at your own risk");
+            }
+        }
+
         public NativeMSDelta()
         {
+            CheckMsDeltaVersion();
+
+
             msdelta = PInvoke.LoadLibrary("msdelta.dll");
             if (msdelta.IsInvalid)
             {
