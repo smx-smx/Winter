@@ -95,7 +95,7 @@ public class ElevationService
                 USER_OBJECT_INFORMATION_INDEX.UOI_NAME,
                 null, 0, &size);
         }
-        using var buf = DisposableMemory.AllocHGlobal((nint)size);
+        using var buf = MemoryHandle.AllocHGlobal((nint)size);
         unsafe
         {
             PInvoke.GetUserObjectInformation(
@@ -118,7 +118,7 @@ public class ElevationService
 
         var winsta = GetCurrentWindowStation();
         var desktop = $@"{winsta}\Default";
-        using var lpDesktop = DisposableMemory.AllocHGlobal(Encoding.Unicode.GetByteCount(desktop));
+        using var lpDesktop = MemoryHandle.AllocHGlobal(Encoding.Unicode.GetByteCount(desktop));
         Marshal.Copy(Encoding.Unicode.GetBytes(desktop), 0, lpDesktop.Address, (int)lpDesktop.Size);
 
         var si = new STARTUPINFOW();

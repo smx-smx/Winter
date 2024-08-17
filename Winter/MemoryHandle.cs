@@ -11,7 +11,7 @@ using Smx.Winter.MsDelta;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using static Smx.Winter.DisposableMemoryAllocator;
+using static Smx.Winter.MemoryAllocator;
 
 namespace Smx.Winter;
 
@@ -22,9 +22,23 @@ public enum DisposableMemoryKind
     Custom = 2
 }
 
-public class TypedDisposableMemory<T> : IDisposable where T : struct
+public record struct TypedPointer<T>(nint Address) where T : struct
 {
-    public DisposableMemory Memory { get; private set; }
+    public ref T Value
+    {
+        get
+        {
+            unsafe
+            {
+                return ref Unsafe.AsRef<T>(Address.ToPointer());
+            }
+        }
+    }
+}
+
+public class TypedMemoryHandle<T> : IDisposable where T : struct
+{
+    public MemoryHandle Memory { get; private set; }
     public TypedPointer<T> Pointer;
 
     private T tmpValue = default;
@@ -51,7 +65,7 @@ public class TypedDisposableMemory<T> : IDisposable where T : struct
         Marshal.StructureToPtr<T>(Value, Memory.Address, false);
     }
 
-    public TypedDisposableMemory(DisposableMemory memory)
+    public TypedMemoryHandle(MemoryHandle memory)
     {
         var structLayout = typeof(T).StructLayoutAttribute;
         _isPacked = structLayout != null && structLayout.Pack < nint.Size;
@@ -86,9 +100,9 @@ public class NativePointerList<T> where T : struct
         array.Add(ptr);
     }
 
-    public DisposableMemory Build()
+    public MemoryHandle Build()
     {
-        var mem = DisposableMemory.AllocNative(nint.Size * this.array.Count);
+        var mem = MemoryHandle.AllocNative(nint.Size * this.array.Count);
         for(int i=0; i<array.Count; i++)
         {
             Marshal.WriteIntPtr(mem.Address + (nint.Size * i), array[i]);
@@ -98,7 +112,7 @@ public class NativePointerList<T> where T : struct
 }
 
 
-public class DisposableMemoryAllocator
+public class MemoryAllocator
 {
     private pfnAlloc allocator;
     private pfnFree deleter;
@@ -106,27 +120,27 @@ public class DisposableMemoryAllocator
     public delegate nint pfnAlloc(nint size);
     public delegate void pfnFree(nint handle, nint size);
 
-    public DisposableMemoryAllocator(pfnAlloc allocator, pfnFree deleter)
+    public MemoryAllocator(pfnAlloc allocator, pfnFree deleter)
     {
         this.allocator = allocator;
         this.deleter = deleter;
     }
 
-    public TypedDisposableMemory<T> Alloc<T>(nint? size = null) where T : struct
+    public TypedMemoryHandle<T> Alloc<T>(nint? size = null) where T : struct
     {
         var allocSize = (size == null) ? Unsafe.SizeOf<T>() : size.Value;
-        return new TypedDisposableMemory<T>(Alloc(allocSize));
+        return new TypedMemoryHandle<T>(Alloc(allocSize));
     }
 
-    public DisposableMemory Alloc(nint size, bool owned = true)
+    public MemoryHandle Alloc(nint size, bool owned = true)
     {
         var mem = this.allocator(size);
         mem.AsSpan<byte>((int)size).Clear();
-        return new DisposableMemory(mem, size, DisposableMemoryKind.Custom, owned: owned, pfnFree: this.deleter);
+        return new MemoryHandle(mem, size, DisposableMemoryKind.Custom, owned: owned, pfnFree: this.deleter);
     }
 }
 
-public class DisposableMemory : IDisposable
+public class MemoryHandle : IDisposable
 {
     private nint handle;
     private nint size;
@@ -135,7 +149,7 @@ public class DisposableMemory : IDisposable
     private readonly bool owned;
     private bool disposed = false;
 
-    public DisposableMemory(nint handle, nint size, DisposableMemoryKind kind, bool owned = true, pfnFree ? pfnFree = null)
+    public MemoryHandle(nint handle, nint size, DisposableMemoryKind kind, bool owned = true, pfnFree ? pfnFree = null)
     {
         this.handle = handle;
         this.size = size;
@@ -226,31 +240,31 @@ public class DisposableMemory : IDisposable
         }
     }
 
-    public static TypedDisposableMemory<T> AllocHGlobal<T>(nint? size = null, bool owned = true) where T : struct
+    public static TypedMemoryHandle<T> AllocHGlobal<T>(nint? size = null, bool owned = true) where T : struct
     {
         var allocSize = (size == null) ? Unsafe.SizeOf<T>() : size.Value;
-        return new TypedDisposableMemory<T>(AllocHGlobal(allocSize, owned: owned));
+        return new TypedMemoryHandle<T>(AllocHGlobal(allocSize, owned: owned));
     }
 
-    public static TypedDisposableMemory<T> AllocNative<T>(nint? size = null, bool owned = true) where T : struct
+    public static TypedMemoryHandle<T> AllocNative<T>(nint? size = null, bool owned = true) where T : struct
     {
         var allocSize = (size == null) ? Unsafe.SizeOf<T>() : size.Value;
-        return new TypedDisposableMemory<T>(AllocNative(allocSize, owned: owned));
+        return new TypedMemoryHandle<T>(AllocNative(allocSize, owned: owned));
     }
 
-    public static DisposableMemory AllocHGlobal(nint size, bool owned = true)
+    public static MemoryHandle AllocHGlobal(nint size, bool owned = true)
     {
         var hMem = Marshal.AllocHGlobal(size);
-        return new DisposableMemory(hMem, size, DisposableMemoryKind.HGlobal);
+        return new MemoryHandle(hMem, size, DisposableMemoryKind.HGlobal);
     }
 
-    public static DisposableMemory AllocNative(nint size, bool owned = true)
+    public static MemoryHandle AllocNative(nint size, bool owned = true)
     {
         nint hMem;
         unsafe
         {
             hMem = new nint(NativeMemory.AllocZeroed((nuint)size));
         }
-        return new DisposableMemory(hMem, size, DisposableMemoryKind.Native, owned: owned);
+        return new MemoryHandle(hMem, size, DisposableMemoryKind.Native, owned: owned);
     }
 }

@@ -57,7 +57,7 @@ public static class HandleExtensions
 
 public static class DisposableMemoryExtensions
 {
-    public static unsafe PWSTR ToPWSTR(this DisposableMemory mem)
+    public static unsafe PWSTR ToPWSTR(this MemoryHandle mem)
     {
         return new PWSTR((char *)mem.Address.ToPointer());
     }

@@ -68,7 +68,7 @@ public class Util
         {
             throw new InvalidOperationException();
         }
-        using var buf = DisposableMemory.AllocHGlobal((nint)(sizeof(char) * cchName));
+        using var buf = MemoryHandle.AllocHGlobal((nint)(sizeof(char) * cchName));
         var pBuf = buf.ToPWSTR();
         using var hFile = PInvoke.FindFirstFileName(path, 0, ref cchName, pBuf);
         if (hFile.IsInvalid) throw new InvalidOperationException();
