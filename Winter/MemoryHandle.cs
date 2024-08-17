@@ -15,7 +15,7 @@ using static Smx.Winter.MemoryAllocator;
 
 namespace Smx.Winter;
 
-public enum DisposableMemoryKind
+public enum MemoryHandleType
 {
     HGlobal = 0,
     Native = 1,
@@ -136,7 +136,7 @@ public class MemoryAllocator
     {
         var mem = this.allocator(size);
         mem.AsSpan<byte>((int)size).Clear();
-        return new MemoryHandle(mem, size, DisposableMemoryKind.Custom, owned: owned, pfnFree: this.deleter);
+        return new MemoryHandle(mem, size, MemoryHandleType.Custom, owned: owned, pfnFree: this.deleter);
     }
 }
 
@@ -144,18 +144,18 @@ public class MemoryHandle : IDisposable
 {
     private nint handle;
     private nint size;
-    private readonly DisposableMemoryKind kind;
+    private readonly MemoryHandleType kind;
     private pfnFree? freeFn;
     private readonly bool owned;
     private bool disposed = false;
 
-    public MemoryHandle(nint handle, nint size, DisposableMemoryKind kind, bool owned = true, pfnFree ? pfnFree = null)
+    public MemoryHandle(nint handle, nint size, MemoryHandleType kind, bool owned = true, pfnFree ? pfnFree = null)
     {
         this.handle = handle;
         this.size = size;
         this.kind = kind;
         this.owned = owned;
-        if(kind == DisposableMemoryKind.Custom)
+        if(kind == MemoryHandleType.Custom)
         {
             ArgumentNullException.ThrowIfNull(pfnFree);
         }
@@ -170,16 +170,16 @@ public class MemoryHandle : IDisposable
 
         switch (kind)
         {
-            case DisposableMemoryKind.HGlobal:
+            case MemoryHandleType.HGlobal:
                 Marshal.FreeHGlobal(handle);
                 break;
-            case DisposableMemoryKind.Native:
+            case MemoryHandleType.Native:
                 unsafe
                 {
                     NativeMemory.Free(handle.ToPointer());
                 }
                 break;
-            case DisposableMemoryKind.Custom:
+            case MemoryHandleType.Custom:
                 ArgumentNullException.ThrowIfNull(this.freeFn);
                 this.freeFn(this.handle, this.size);
                 break;
@@ -214,7 +214,7 @@ public class MemoryHandle : IDisposable
         nint newHandle = 0;
         switch (kind)
         {
-            case DisposableMemoryKind.HGlobal:
+            case MemoryHandleType.HGlobal:
                 newHandle = Marshal.ReAllocHGlobal(handle, size);
                 if(newHandle == 0)
                 {
@@ -223,7 +223,7 @@ public class MemoryHandle : IDisposable
                 this.handle = newHandle;
                 this.size = size;
                 break;
-            case DisposableMemoryKind.Native:
+            case MemoryHandleType.Native:
                 unsafe
                 {
                     newHandle = new nint(NativeMemory.Realloc(handle.ToPointer(), (nuint)size));
@@ -235,7 +235,7 @@ public class MemoryHandle : IDisposable
                 this.handle = newHandle;
                 this.size = size;
                 break;
-            case DisposableMemoryKind.Custom:
+            case MemoryHandleType.Custom:
                 throw new NotImplementedException();
         }
     }
@@ -255,7 +255,7 @@ public class MemoryHandle : IDisposable
     public static MemoryHandle AllocHGlobal(nint size, bool owned = true)
     {
         var hMem = Marshal.AllocHGlobal(size);
-        return new MemoryHandle(hMem, size, DisposableMemoryKind.HGlobal);
+        return new MemoryHandle(hMem, size, MemoryHandleType.HGlobal);
     }
 
     public static MemoryHandle AllocNative(nint size, bool owned = true)
@@ -265,6 +265,6 @@ public class MemoryHandle : IDisposable
         {
             hMem = new nint(NativeMemory.AllocZeroed((nuint)size));
         }
-        return new MemoryHandle(hMem, size, DisposableMemoryKind.Native, owned: owned);
+        return new MemoryHandle(hMem, size, MemoryHandleType.Native, owned: owned);
     }
 }

@@ -156,7 +156,7 @@ namespace Smx.Winter.MsDelta
             mem.AsSpan<byte>((int)size).Clear();
             
             var pfnDelete = this.delete;
-            return new MemoryHandle(mem, size, DisposableMemoryKind.Custom, owned: owned, pfnFree: (nint ptr, nint size) =>
+            return new MemoryHandle(mem, size, MemoryHandleType.Custom, owned: owned, pfnFree: (nint ptr, nint size) =>
             {
                 pfnDelete(ptr);
             });
@@ -441,8 +441,8 @@ namespace Smx.Winter.MsDelta
             set => _value = (byte)((value) ? 1 : 0);
         }
 
-        public static CppBool True => new CppBool() { Value = false };
-        public static CppBool False => new CppBool() { Value = false };
+        public static CppBool True => new CppBool { Value = true };
+        public static CppBool False => new CppBool { Value = false };
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -753,8 +753,6 @@ namespace Smx.Winter.MsDelta
 
             var outputs = new byte[1][];
             Call("NatWrap", inputs, ref outputs);
-
-            Environment.Exit(0);
         }
 
         private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
@@ -805,7 +803,7 @@ namespace Smx.Winter.MsDelta
                 gp_bufferObject = GetSymbolAddress("??_7BufferObject@compo@@6B@")
             };
             PInvoke.SymCleanup(PInvoke.GetCurrentProcess_SafeHandle());
-            
+
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
         }
     }
