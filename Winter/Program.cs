@@ -227,14 +227,19 @@ public class Program
         
         var msdelta = new NativeMSDelta();
         msdelta.AddComponent(name, code);
-        if(!msdelta.Call(name, inputs.ToArray(), outputs))
+        if(!msdelta.Call(name, inputs.ToArray(), ref outputs))
         {
             throw new InvalidOperationException("script call failed");
         }
 
         for(int i = 0; i < outputFiles.Count; i++)
         {
-            File.WriteAllBytes(outputFiles[i], outputs[i]);
+            using var fh = new FileStream(outputFiles[i], FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
+            fh.SetLength(0);
+
+            if (outputs[i] == null) continue;
+            fh.Write(outputs[i]);
+            fh.Close();
         }
     }
 
