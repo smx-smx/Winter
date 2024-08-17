@@ -643,6 +643,16 @@ def ApplyPreProcessSource_CLI4_I386:
 =========================
 wrap( ApplyPreProcessSourcePeCli4 ):;
 
+def ApplyPreProcessSource_RAW:
+=========================
+code( InputSharedInt ): input[ 0 ];
+flagsInt( InputSharedInt ): input[ 1 ];
+source( PassBuffer ): input[ 2 ];
+preProcessBuffer( InputSharedBuffer ): input[ 3 ];
+targetSize( InputSharedInt ): input[ 4 ];
+riftTable( CreateEmptyRiftTable ):;
+compressionRiftTable( CreateEmptyRiftTable ):;
+output: source[ 0 ], compressionRiftTable[ 0 ];
 
 def ApplyPostProcessTarget:
 =========================
@@ -813,6 +823,7 @@ source( PassBuffer ): input[ 0 ];
 patch( PassBuffer ): input[ 1 ];
 split( SplitPatchHeader ): patch[ 0 ];
 targetBuffer( CreateBuffer ): split[ 4 ];
+// ApplyPayload(code, flagsInt, source, hash, targetBuffer, false);
 apply( ApplyPayload ): split[ 2 ], split[ 3 ], source[ 0 ], split[ 0 ], targetBuffer[ 0 ], 0;
 bitReaderClose( BitReaderClose ): apply[ 0 ], 1;
 hash( CalculateHash ): split[ 6 ], apply[ 1 ];
