@@ -101,10 +101,10 @@ public class ElevationService
             PInvoke.GetUserObjectInformation(
                 hWinsta,
                 USER_OBJECT_INFORMATION_INDEX.UOI_NAME,
-                buf.Value.ToPointer(), size, null);
+                buf.Address.ToPointer(), size, null);
         }
 
-        return Marshal.PtrToStringUni(buf.Value);
+        return Marshal.PtrToStringUni(buf.Address);
     }
 
     public void RunAsTrustedInstaller(string commandLine)
@@ -119,12 +119,12 @@ public class ElevationService
         var winsta = GetCurrentWindowStation();
         var desktop = $@"{winsta}\Default";
         using var lpDesktop = DisposableMemory.AllocHGlobal(Encoding.Unicode.GetByteCount(desktop));
-        Marshal.Copy(Encoding.Unicode.GetBytes(desktop), 0, lpDesktop.Value, (int)lpDesktop.Size);
+        Marshal.Copy(Encoding.Unicode.GetBytes(desktop), 0, lpDesktop.Address, (int)lpDesktop.Size);
 
         var si = new STARTUPINFOW();
         unsafe
         {
-            si.lpDesktop = new PWSTR((char*)lpDesktop.Value.ToPointer());
+            si.lpDesktop = new PWSTR((char*)lpDesktop.Address.ToPointer());
             PInvoke.CreateProcessWithToken(
                 tiToken,
                 CREATE_PROCESS_LOGON_FLAGS.LOGON_WITH_PROFILE,

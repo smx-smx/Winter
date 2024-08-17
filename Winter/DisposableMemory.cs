@@ -6,30 +6,154 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using System.Runtime.InteropServices;
+using Smx.SharpIO;
+using Smx.Winter.MsDelta;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using static Smx.Winter.DisposableMemoryAllocator;
 
 namespace Smx.Winter;
 
 public enum DisposableMemoryKind
 {
     HGlobal = 0,
-    Native = 1
+    Native = 1,
+    Custom = 2
 }
 
-public class DisposableMemory : IDisposable
+public class TypedDisposableMemory<T> : IDisposable where T : struct
 {
-    private readonly nint handle;
-    private readonly nint size;
-    private readonly DisposableMemoryKind kind;
-    private DisposableMemory(nint handle, nint size, DisposableMemoryKind kind)
+    public DisposableMemory Memory { get; private set; }
+    public TypedPointer<T> Pointer;
+
+    private T tmpValue = default;
+
+    public ref T Value {
+        get {
+            if (_isPacked)
+            {
+                return ref tmpValue;
+            } else
+            {
+                return ref Pointer.Value;
+            }
+        }
+    }
+
+    public nint Address => Pointer.Address;
+
+    private readonly bool _isPacked;
+
+    public void Write()
     {
-        this.handle = handle;
-        this.size = size;
-        this.kind = kind;
+        if (!_isPacked) return;
+        Marshal.StructureToPtr<T>(Value, Memory.Address, false);
+    }
+
+    public TypedDisposableMemory(DisposableMemory memory)
+    {
+        var structLayout = typeof(T).StructLayoutAttribute;
+        _isPacked = structLayout != null && structLayout.Pack < nint.Size;
+
+        Memory = memory;
+        Pointer = new TypedPointer<T>(Memory.Address);
     }
 
     public void Dispose()
     {
+        Memory.Dispose();
+    }
+}
+
+public class NativePointerList<T> where T : struct
+{
+    private List<nint> array;
+
+    public NativePointerList(int? initialCapacity = null)
+    {
+        array = (initialCapacity != null)
+            ? new List<nint>(initialCapacity.Value)
+            : new List<nint>();
+    }
+
+    public void Add(TypedPointer<T> ptr)
+    {
+        array.Add(ptr.Address);
+    }
+    public void DangerousAdd(nint ptr)
+    {
+        array.Add(ptr);
+    }
+
+    public DisposableMemory Build()
+    {
+        var mem = DisposableMemory.AllocNative(nint.Size * this.array.Count);
+        for(int i=0; i<array.Count; i++)
+        {
+            Marshal.WriteIntPtr(mem.Address + (nint.Size * i), array[i]);
+        }
+        return mem;
+    }
+}
+
+
+public class DisposableMemoryAllocator
+{
+    private pfnAlloc allocator;
+    private pfnFree deleter;
+
+    public delegate nint pfnAlloc(nint size);
+    public delegate void pfnFree(nint handle, nint size);
+
+    public DisposableMemoryAllocator(pfnAlloc allocator, pfnFree deleter)
+    {
+        this.allocator = allocator;
+        this.deleter = deleter;
+    }
+
+    public TypedDisposableMemory<T> Alloc<T>(nint? size = null) where T : struct
+    {
+        var allocSize = (size == null) ? Unsafe.SizeOf<T>() : size.Value;
+        return new TypedDisposableMemory<T>(Alloc(allocSize));
+    }
+
+    public DisposableMemory Alloc(nint size, bool owned = true)
+    {
+        var mem = this.allocator(size);
+        mem.AsSpan<byte>((int)size).Clear();
+        return new DisposableMemory(mem, size, DisposableMemoryKind.Custom, owned: owned, pfnFree: this.deleter);
+    }
+}
+
+public class DisposableMemory : IDisposable
+{
+    private nint handle;
+    private nint size;
+    private readonly DisposableMemoryKind kind;
+    private pfnFree? freeFn;
+    private readonly bool owned;
+    private bool disposed = false;
+
+    public DisposableMemory(nint handle, nint size, DisposableMemoryKind kind, bool owned = true, pfnFree ? pfnFree = null)
+    {
+        this.handle = handle;
+        this.size = size;
+        this.kind = kind;
+        this.owned = owned;
+        if(kind == DisposableMemoryKind.Custom)
+        {
+            ArgumentNullException.ThrowIfNull(pfnFree);
+        }
+        this.freeFn = pfnFree;
+    }
+
+    public void Dispose()
+    {
+        if (this.disposed) return;
+        this.disposed = true;
+        if (!owned) return;
+
         switch (kind)
         {
             case DisposableMemoryKind.HGlobal:
@@ -41,51 +165,92 @@ public class DisposableMemory : IDisposable
                     NativeMemory.Free(handle.ToPointer());
                 }
                 break;
+            case DisposableMemoryKind.Custom:
+                ArgumentNullException.ThrowIfNull(this.freeFn);
+                this.freeFn(this.handle, this.size);
+                break;
         }
     }
 
-    public Span<byte> AsSpan()
+    public Span<T> GetSpan<T>(int offset = 0, int index = 0) where T : unmanaged
     {
-        Span<byte> span;
-        unsafe
-        {
-            span = new Span<byte>(handle.ToPointer(), (int)size);
-        }
-        return span;
+        return Span.Slice(offset)
+            .Cast<T>()
+            .Slice(index);
     }
 
-    public nint Value => handle;
+    public Span<byte> Span
+    {
+        get
+        {
+            Span<byte> span;
+            unsafe
+            {
+                span = new Span<byte>(handle.ToPointer(), (int)size);
+            }
+            return span;
+        }
+    }
+
+    public nint Address => handle;
     public nint Size => size;
 
     public void Realloc(nint size)
     {
+        nint newHandle = 0;
         switch (kind)
         {
             case DisposableMemoryKind.HGlobal:
-                Marshal.ReAllocHGlobal(handle, size);
+                newHandle = Marshal.ReAllocHGlobal(handle, size);
+                if(newHandle == 0)
+                {
+                    throw new InvalidOperationException("realloc failed");
+                }
+                this.handle = newHandle;
+                this.size = size;
                 break;
             case DisposableMemoryKind.Native:
                 unsafe
                 {
-                    NativeMemory.Realloc(handle.ToPointer(), (nuint)size);
+                    newHandle = new nint(NativeMemory.Realloc(handle.ToPointer(), (nuint)size));
                 }
+                if(newHandle == 0)
+                {
+                    throw new InvalidOperationException("realloc failed");
+                }
+                this.handle = newHandle;
+                this.size = size;
                 break;
+            case DisposableMemoryKind.Custom:
+                throw new NotImplementedException();
         }
     }
 
-    public static DisposableMemory AllocHGlobal(nint size)
+    public static TypedDisposableMemory<T> AllocHGlobal<T>(nint? size = null, bool owned = true) where T : struct
+    {
+        var allocSize = (size == null) ? Unsafe.SizeOf<T>() : size.Value;
+        return new TypedDisposableMemory<T>(AllocHGlobal(allocSize, owned: owned));
+    }
+
+    public static TypedDisposableMemory<T> AllocNative<T>(nint? size = null, bool owned = true) where T : struct
+    {
+        var allocSize = (size == null) ? Unsafe.SizeOf<T>() : size.Value;
+        return new TypedDisposableMemory<T>(AllocNative(allocSize, owned: owned));
+    }
+
+    public static DisposableMemory AllocHGlobal(nint size, bool owned = true)
     {
         var hMem = Marshal.AllocHGlobal(size);
         return new DisposableMemory(hMem, size, DisposableMemoryKind.HGlobal);
     }
 
-    public static DisposableMemory AllocNative(nint size)
+    public static DisposableMemory AllocNative(nint size, bool owned = true)
     {
         nint hMem;
         unsafe
         {
             hMem = new nint(NativeMemory.AllocZeroed((nuint)size));
         }
-        return new DisposableMemory(hMem, size, DisposableMemoryKind.Native);
+        return new DisposableMemory(hMem, size, DisposableMemoryKind.Native, owned: owned);
     }
 }

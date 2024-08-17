@@ -8,6 +8,7 @@
 #endregion
 ﻿using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
+using Smx.SharpIO;
 using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -221,22 +222,21 @@ public class ManagedRegistryKey : IDisposable
         unsafe {
             res = PInvoke.RegGetValue(
                 keyHandle, null, valueName,
-                flags, &type_tmp, buf.Value.ToPointer(), &cbData
+                flags, &type_tmp, buf.Address.ToPointer(), &cbData
             );
         }
 
-        var data = buf.AsSpan();
         PWSTR pStr;
 
         switch (type)
         {
             case REG_VALUE_TYPE.REG_NONE:
             case REG_VALUE_TYPE.REG_BINARY:
-                return data.ToArray();
+                return buf.Span.ToArray();
             case REG_VALUE_TYPE.REG_DWORD:
-                return MemoryMarshal.Cast<byte, uint>(data)[0];
+                return buf.Span.Cast<uint>()[0];
             case REG_VALUE_TYPE.REG_QWORD:
-                return MemoryMarshal.Cast<byte, ulong>(data)[0];
+                return buf.Span.Cast<ulong>()[0];
             case REG_VALUE_TYPE.REG_MULTI_SZ:
                 List<string> stringArray = new List<string>();
                 int i = 0;
@@ -244,7 +244,7 @@ public class ManagedRegistryKey : IDisposable
                 {
                     unsafe
                     {
-                        pStr = new PWSTR((char*)buf.Value.ToPointer() + i);
+                        pStr = new PWSTR((char*)buf.Address.ToPointer() + i);
                     }
                     var str = pStr.ToString();
                     i += sizeof(char) * (str.Length + 1);
@@ -258,7 +258,7 @@ public class ManagedRegistryKey : IDisposable
             case REG_VALUE_TYPE.REG_LINK:
                 unsafe
                 {
-                    pStr = new PWSTR((char*)buf.Value.ToPointer());
+                    pStr = new PWSTR((char*)buf.Address.ToPointer());
                 }
                 return pStr.ToString();
             case REG_VALUE_TYPE.REG_RESOURCE_LIST:

@@ -23,10 +23,10 @@ namespace Smx.Winter
             public static DisposableMemory CreateFromString(string str, out LUNICODE_STRING value)
             {
                 var memoryHandle = DisposableMemory.AllocNative(Encoding.Unicode.GetByteCount(str));
-                Marshal.Copy(Encoding.Unicode.GetBytes(str), 0, memoryHandle.Value, (int)memoryHandle.Size);
+                Marshal.Copy(Encoding.Unicode.GetBytes(str), 0, memoryHandle.Address, (int)memoryHandle.Size);
                 value = new LUNICODE_STRING
                 {
-                    Buffer = memoryHandle.Value,
+                    Buffer = memoryHandle.Address,
                     Length = (ulong)memoryHandle.Size,
                     MaximumLength = (ulong)memoryHandle.Size
                 };

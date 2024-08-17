@@ -59,7 +59,7 @@ public static class DisposableMemoryExtensions
 {
     public static unsafe PWSTR ToPWSTR(this DisposableMemory mem)
     {
-        return new PWSTR((char *)mem.Value.ToPointer());
+        return new PWSTR((char *)mem.Address.ToPointer());
     }
 }
 
