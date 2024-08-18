@@ -2,12 +2,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.ApplicationInstallationAndServicing;
@@ -17,6 +19,14 @@ using static Smx.Winter.MsDelta.vtb_ComponentFactory;
 
 namespace Smx.Winter.MsDelta
 {
+    internal struct LinkedListNode
+    {
+        public TypedPointer<LinkedListNode> Next;
+        public nint Name;
+        public nint Data;
+    }
+
+
     internal class NativeApi
     {
         public delegate void pfnInitDelta();
@@ -59,15 +69,19 @@ namespace Smx.Winter.MsDelta
         );
         public delegate nint pfnComponentFactoryObtainComponent(nint factory);
 
-        public delegate void pfnDtor(nint ptr, nint v);
+        public delegate void pfnDtor(nint ptr, byte flags);
         public delegate nint pfnFactoryInternalInstantiate(nint @this);
         public delegate void pfnComponentInternalProcess(nint @this);
 
         public delegate nint pfnGetExclusiveInput(nint compo, nint index);
         public delegate nint pfnGetSharedInput(nint compo, nint index);
 
-        public delegate void pfnPutOutput(nint compo, nint index, nint outputObj);
-        public delegate void pfnBufferObjectInit(nint compo, nint env, InputMemoryType bufferType, nint source, nint size);
+        public delegate void pfnPutOutput(TypedPointer<ComponentData> compo, nint index, nint outputObj);
+        public delegate void pfnBufferObjectInit(
+            nint compo,
+            TypedPointer<HeapMemoryManagerInstance> mman,
+            InputMemoryType bufferType,
+            nint source, nint size);
 
         public delegate void pfnMemoryBlockResize(nint block, nint size, CppBool copyOld);
         public delegate nint pfnBufferObjectGetStartWritable(nint block);
@@ -80,37 +94,65 @@ namespace Smx.Winter.MsDelta
             CppBool forWrite
         );
 
+        public delegate TypedPointer<BufferObject> pfnRiftTableSerialize(
+            TypedPointer<TypedPointer<HeapMemoryManagerInstance>> mman,
+            nint pRiftTable
+        );
+        public delegate TypedPointer<BufferObject> pfnCompositeFormatSerialize(
+            TypedPointer<TypedPointer<HeapMemoryManagerInstance>> mman,
+            nint pCompositeFormat
+        );
 
-        public pfnInitDelta init;
-        public pfnInitEnv init_env;
-        public pfnComponentGet compo_get;
-        public pfnComponentPut compo_put;
-        public pfnComponentInit compo_init;
-        public pfnComponentInitFactory compo_init_factory;
-        public pfnCdpNew cdp_new;
-        public pfnOperatorDelete delete;
-        public pfnFlowComponentFactory flow_component_factory;
-        public pfnFlowComponentInit flow_component_init;
-        public pfnInputBufferGet input_buffer_get;
-        public pfnInputBufferPut output_buffer_put;
-        public pfnComponentProcess component_process;
-        public pfnComponentFactoriesPutAll component_factories_put_all;
-        public pfnComponentFactoryObtainComponent component_factory_obtain_component;
-        public pfnGetExclusiveInput get_exclusive_input;
-        public pfnGetSharedInput get_shared_input;
-        public pfnPutOutput put_output;
-        public pfnBufferObjectInit buffer_object_init;
-        public pfnMemoryBlockResize memory_block_resize;
-        public pfnBufferObjectGetStartWritable buffer_object_get_start_writable;
-        public pfnStringMapInternalLookup stringmap_internal_lookup;
-        public nint gp_environment;
-        public nint gp_applyPatchFactory;
-        public nint gp_bufferObject;
+        public required pfnInitDelta init;
+        public required pfnInitEnv init_env;
+        public required pfnComponentGet compo_get;
+        public required pfnComponentPut compo_put;
+        public required pfnComponentInit compo_init;
+        public required pfnComponentInitFactory compo_init_factory;
+        public required pfnCdpNew cdp_new;
+        public required pfnOperatorDelete delete;
+        public required pfnFlowComponentFactory flow_component_factory;
+        public required pfnFlowComponentInit flow_component_init;
+        public required pfnInputBufferGet input_buffer_get;
+        public required pfnInputBufferPut output_buffer_put;
+        public required pfnComponentProcess component_process;
+        public required pfnComponentFactoriesPutAll component_factories_put_all;
+        public required pfnComponentFactoryObtainComponent component_factory_obtain_component;
+        public required pfnGetExclusiveInput get_exclusive_input;
+        public required pfnGetSharedInput get_shared_input;
+        public required pfnPutOutput put_output;
+        public required pfnBufferObjectInit buffer_object_init;
+        public required pfnMemoryBlockResize memory_block_resize;
+        public required pfnBufferObjectGetStartWritable buffer_object_get_start_writable;
+        public required pfnStringMapInternalLookup stringmap_internal_lookup;
+        public required pfnRiftTableSerialize rift_table_serialize;
+        public required pfnCompositeFormatSerialize composite_format_serialize;
+        public required nint gp_environment;
+        public required nint gp_applyPatchFactory;
+        public required nint gp_bufferObject;
+
+        public void DestructObject(nint obj)
+        {
+            // read pointer to vtable
+            nint vtbl = Marshal.ReadIntPtr(obj);
+            // read first vtable entry (destructor)
+            nint dtor = Marshal.ReadIntPtr(vtbl);
+            var fnDtor = Marshal.GetDelegateForFunctionPointer<pfnDtor>(dtor);
+            fnDtor(obj, 0xFF);
+        }
+
+        public TypedPointer<LinkedListNode> StringMapLookup(string name, bool forInsertion)
+        {
+            var ptr = stringmap_internal_lookup(_stringPool, name, name.Length, CppBool.FromBool(forInsertion));
+            return new TypedPointer<LinkedListNode>(ptr);
+        }
 
 
         public nint _env => Marshal.ReadIntPtr(gp_environment);
         public nint _privateData => Marshal.ReadIntPtr(_env + nint.Size);
-        public nint _stringPool => Marshal.ReadIntPtr(_env + nint.Size + nint.Size);
+        public nint _stringPoolRef => Marshal.ReadIntPtr(_env + nint.Size + nint.Size);
+        public nint _stringPool => Marshal.ReadIntPtr(_stringPoolRef);
+
         public TypedPointer<HeapMemoryManagerInstance> _mman
         {
             get
@@ -139,11 +181,11 @@ namespace Smx.Winter.MsDelta
             return new MemoryAllocator(
                 new MemoryAllocator.pfnAlloc((size) =>
                 {
-                    return mman.Value.Vtbl.Value.Alloc.Func(mman.Address, size);
+                    return mman.Value.Vtbl.Value.Alloc.Func(mman, size);
                 }),
                 new MemoryAllocator.pfnFree((ptr, size) =>
                 {
-                    mman.Value.Vtbl.Value.Free.Func(mman.Address, ptr);
+                    mman.Value.Vtbl.Value.Free.Func(mman, ptr);
                 })
             );
         }
@@ -216,12 +258,18 @@ namespace Smx.Winter.MsDelta
         public nint _u2;
         public TypedPointer<BufferObjectInfo> Info;
 
-        public byte[] GetData()
+        public byte[] ReadByteArray()
         {
             if (Info.Address == 0) throw new InvalidOperationException();
             var data = new byte[Info.Value.Size];
             Marshal.Copy(Info.Value.Data, data, 0, data.Length);
             return data;
+        }
+
+        public string ReadString(Encoding? encoding = null)
+        {
+            var encToUse = (encoding == null) ? Encoding.ASCII : encoding;
+            return encToUse.GetString(ReadByteArray());
         }
     }
 
@@ -239,9 +287,9 @@ namespace Smx.Winter.MsDelta
 
     internal struct HeapMemoryManagerVtbl
     {
-        public delegate nint pfnMemoryManagerAlloc(nint pThis, nint size);
-        public delegate nint pfnMemoryManagerRealloc(nint pThis, TypedPointer<nint> ppMem, nint size);
-        public delegate nint pfnMemoryManagerFree(nint pThis, nint pMem);
+        public delegate nint pfnMemoryManagerAlloc(TypedPointer<HeapMemoryManagerInstance> pThis, nint size);
+        public delegate nint pfnMemoryManagerRealloc(TypedPointer<HeapMemoryManagerInstance> pThis, TypedPointer<nint> ppMem, nint size);
+        public delegate nint pfnMemoryManagerFree(TypedPointer<HeapMemoryManagerInstance> pThis, nint pMem);
 
         /*  0 */ private FunctionPointer<pfnDtor> _destructor;
         /*  8 */ public FunctionPointer<pfnMemoryManagerAlloc> Alloc;
@@ -257,7 +305,7 @@ namespace Smx.Winter.MsDelta
     interface INativeComponent
     {
         nint Instance { get; }
-        void InternalProcess(nint pCompo);
+        void InternalProcess(TypedPointer<ComponentData> pCompo);
     }
 
     interface INativeComponentFactory
@@ -286,9 +334,14 @@ namespace Smx.Winter.MsDelta
 
         public nint Instance => instanceData.Address;
 
-        private void Destructor(nint ptr, nint v)
+        private void Destructor(nint ptr, byte flags)
         {
             Dispose();
+        }
+
+        protected TypedPointer<T> GetSharedInput<T>(int index) where T : struct
+        {
+            return new TypedPointer<T>(api.get_shared_input(Instance, index));
         }
 
         private TypedPointer<HeapMemoryManagerInstance> GetGlobalMemoryManager(nint pCompo)
@@ -307,6 +360,12 @@ namespace Smx.Winter.MsDelta
             vtblComponent.Dispose();
         }
 
+        private void InvokeInternalProcess(nint pCompo)
+        {
+            var compo = new TypedPointer<ComponentData>(pCompo);
+            this.InternalProcess(compo);
+        }
+
         public NativeComponentBase(NativeApi api)
         {
             this.api = api;
@@ -315,7 +374,7 @@ namespace Smx.Winter.MsDelta
             instanceData = allocator.Alloc(0x20);
             vtblComponent = allocator.Alloc<vtb_Component>();
             vtblComponent.Value.dtor.Func = this.Destructor;
-            vtblComponent.Value.internal_process.Func = this.InternalProcess;
+            vtblComponent.Value.internal_process.Func = this.InvokeInternalProcess;
             vtblComponent.Write();
             _disposed = false;
 
@@ -323,26 +382,24 @@ namespace Smx.Winter.MsDelta
             Marshal.WriteIntPtr(instanceData.Address, vtblComponent.Address);
         }
 
-        public abstract void InternalProcess(nint pThis);
+        public abstract void InternalProcess(TypedPointer<ComponentData> pCompo);
     }
 
     class MyNativeComponent : NativeComponentBase
     {
-        public override void InternalProcess(nint pCompo)
+        public override void InternalProcess(TypedPointer<ComponentData> pCompo)
         {
             var outputBuffer = api.CreateComponent(api.gp_bufferObject, ComponentType.Buffer);
 
             var outStr = "Hello, World";
             var outBytes = Encoding.ASCII.GetBytes(outStr);
 
-            var compo = new ComponentData(pCompo);
-
-            var mman = compo.Info.MemoryManager;
+            var mman = pCompo.Value.Info.MemoryManager;
             var mmanInstance = mman.Value;
 
-            var memBlock = mmanInstance.Vtbl.Value.Alloc.Func(mman.Address, outBytes.Length);
+            var memBlock = mmanInstance.Vtbl.Value.Alloc.Func(mman, outBytes.Length);
             Marshal.Copy(outBytes, 0, memBlock, outBytes.Length);
-            api.buffer_object_init(outputBuffer.Address, mman.Address, InputMemoryType.Owned, memBlock, outBytes.Length);
+            api.buffer_object_init(outputBuffer.Address, mman, InputMemoryType.Owned, memBlock, outBytes.Length);
             api.put_output(pCompo, 0, outputBuffer.Address);
         }
 
@@ -352,26 +409,112 @@ namespace Smx.Winter.MsDelta
         }
     }
 
+    class SharedUtil
+    {
+        private const string DEBUG_DIR = "debug";
+
+        public static void WriteDebugFile(string fileName, byte[] data)
+        {
+            Directory.CreateDirectory(DEBUG_DIR);
+            var path = Path.Combine(DEBUG_DIR, fileName);
+            File.WriteAllBytes(path, data);
+        }
+    }
+
     class MyDebugWriteFileComponent : NativeComponentBase
     {
         public MyDebugWriteFileComponent(NativeApi api) : base(api)
         {
         }
 
-        public override void InternalProcess(nint pThis)
+        public override void InternalProcess(TypedPointer<ComponentData> pCompo)
         {
-            var inputFilename = new TypedPointer<BufferObject>(api.get_shared_input(pThis, 0));
-            var inputBuffer = new TypedPointer<BufferObject>(api.get_shared_input(pThis, 1));
+            var inputFilename = GetSharedInput<BufferObject>(0);
+            var inputBuffer = GetSharedInput<BufferObject>(1);
             
-            var fileName = Encoding.ASCII.GetString(inputFilename.Value.GetData());
-            var buffer = inputBuffer.Value.GetData();
+            var fileName = inputFilename.Value.ReadString();
+            var buffer = inputBuffer.Value.ReadByteArray();
 
-            Directory.CreateDirectory("debug");
-            var path = Path.Combine("debug", fileName);
-            File.WriteAllBytes(path, buffer);
+            SharedUtil.WriteDebugFile(fileName, buffer);
         }
     }
 
+    class MyDebugWriteFileRiftTableComponent : NativeComponentBase
+    {
+        public MyDebugWriteFileRiftTableComponent(NativeApi api) : base(api)
+        {
+        }
+
+        public override void InternalProcess(TypedPointer<ComponentData> pCompo)
+        {
+            var inputFilename = GetSharedInput<BufferObject>(0);
+            var inputRiftTable = GetSharedInput<nint>(1);
+
+            var buffer = api.rift_table_serialize(
+                pCompo.Value.Info.MemoryManagerRef,
+                inputRiftTable.Address
+            );
+            SharedUtil.WriteDebugFile(
+                inputFilename.Value.ReadString(),
+                buffer.Value.ReadByteArray()
+            );
+            api.DestructObject(buffer.Address);
+        }
+    }
+
+    class MyDebugWriteFileCompositeFormatComponent : NativeComponentBase
+    {
+        public MyDebugWriteFileCompositeFormatComponent(NativeApi api) : base(api)
+        {
+        }
+
+        public override void InternalProcess(TypedPointer<ComponentData> pCompo)
+        {
+            var inputFilename = GetSharedInput<BufferObject>(0);
+            var inputCompositeFormat = GetSharedInput<nint>(1);
+
+            var buffer = api.composite_format_serialize(
+                pCompo.Value.Info.MemoryManagerRef,
+                inputCompositeFormat.Address
+            );
+            SharedUtil.WriteDebugFile(
+                inputFilename.Value.ReadString(),
+                buffer.Value.ReadByteArray()
+            );
+            api.DestructObject(buffer.Address);
+        }
+    }
+
+
+    class MyDebugWriteFileCompositeFormatFactory : INativeComponentFactory
+    {
+        public ComponentInputPortSpec[] InputSpecs => [
+            new ComponentInputPortSpec { Type = ComponentType.Buffer, NotUserArgument = CppBool.False },
+            new ComponentInputPortSpec { Type = ComponentType.CompositeFormat, NotUserArgument = CppBool.False },
+        ];
+
+        public ComponentType[] OutputSpecs => [];
+
+        public INativeComponent Create(NativeApi api)
+        {
+            return new MyDebugWriteFileCompositeFormatComponent(api);
+        }
+    }
+
+    class MyDebugWriteFileRiftTableFactory : INativeComponentFactory
+    {
+        public ComponentInputPortSpec[] InputSpecs => [
+            new ComponentInputPortSpec { Type = ComponentType.Buffer, NotUserArgument = CppBool.False },
+            new ComponentInputPortSpec { Type = ComponentType.RiftTable, NotUserArgument = CppBool.False }
+        ];
+
+        public ComponentType[] OutputSpecs => [];
+
+        public INativeComponent Create(NativeApi api)
+        {
+            return new MyDebugWriteFileRiftTableComponent(api);
+        }
+    }
 
     class MyDebugWriteFileFactory : INativeComponentFactory
     {
@@ -428,7 +571,7 @@ namespace Smx.Winter.MsDelta
 
         public nint Instance => instanceData.Address;
 
-        private void Destructor(nint ptr, nint v)
+        private void Destructor(nint ptr, byte flags)
         {
             Dispose();
         }
@@ -554,7 +697,7 @@ namespace Smx.Winter.MsDelta
     {
         public ulong _u0;
         public ulong _u1;
-        public TypedPointer<TypedPointer<HeapMemoryManagerInstance>> memoryManager;
+        public TypedPointer<TypedPointer<HeapMemoryManagerInstance>> MemoryManagerRef;
         private ulong numInputs;
         public ComponentInputInfoArray InputInfo;
         private ulong numOutputs;
@@ -563,7 +706,7 @@ namespace Smx.Winter.MsDelta
         public int NumInputs => (int)numInputs;
         public int NumOutputs => (int)numOutputs;
 
-        public TypedPointer<HeapMemoryManagerInstance> MemoryManager => memoryManager.Value;
+        public TypedPointer<HeapMemoryManagerInstance> MemoryManager => MemoryManagerRef.Value;
     }
 
     public struct CppBool()
@@ -577,6 +720,11 @@ namespace Smx.Winter.MsDelta
 
         public static CppBool True => new CppBool { Value = true };
         public static CppBool False => new CppBool { Value = false };
+
+        public static CppBool FromBool(bool v)
+        {
+            return v ? CppBool.True : CppBool.False;
+        }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
@@ -717,7 +865,7 @@ namespace Smx.Winter.MsDelta
         {
             _needInit = true;
             var compo = MakeFlowComponent(code);
-            api.compo_put(api._stringPool, name, name.Length, compo);
+            api.compo_put(api._stringPoolRef, name, name.Length, compo);
             _needInit = false;
         }
 
@@ -837,7 +985,7 @@ namespace Smx.Winter.MsDelta
 
         public bool Call(string name, byte[][] inputs, ref byte[][] outputs)
         {
-            nint compo = api.compo_get(api._stringPool, name, name.Length);
+            nint compo = api.compo_get(api._stringPoolRef, name, name.Length);
             if (compo == 0) return false;
             Invoke(compo, ref outputs, inputs);
             return true;
@@ -854,7 +1002,7 @@ namespace Smx.Winter.MsDelta
             var compoFactory = fac.Instance;
 
             _needInit = true;
-            api.compo_put(api._stringPool, name, name.Length, compoFactory);
+            api.compo_put(api._stringPoolRef, name, name.Length, compoFactory);
             _needInit = false;
 
 
@@ -893,13 +1041,6 @@ namespace Smx.Winter.MsDelta
             }
         }
 
-        private struct LinkedListNode
-        {
-            public TypedPointer<LinkedListNode> Next;
-            public nint Name;
-            public nint Data;
-        }
-
         private void OverwriteFactoryVtable(nint dst, nint src)
         {
             unsafe
@@ -908,33 +1049,42 @@ namespace Smx.Winter.MsDelta
             }
         }
 
-        private void PatchDebugWriteFile()
+        private bool StringMapGetNode(string name, bool forWrite, out TypedPointer<LinkedListNode> nodeOut)
         {
-            _needInit = true;
+            nodeOut = new TypedPointer<LinkedListNode>(0);
 
-            var name = "DebugWriteFile";
-            var nameLoc = api.stringmap_internal_lookup(Marshal.ReadIntPtr(api._stringPool), name, name.Length, CppBool.False);
-            if (nameLoc == 0) throw new InvalidOperationException();
+            var nameLoc = api.StringMapLookup(name, forWrite);
+            if (nameLoc.Address == 0) return false;
 
-            var nodePtr = Marshal.ReadIntPtr(api._stringPool + nint.Size);
-            if (nodePtr == 0) throw new InvalidOperationException();
+            var listHead = Marshal.ReadIntPtr(api._stringPoolRef + nint.Size);
+            if (listHead == 0) return false;
 
-            var node = new TypedPointer<LinkedListNode>(nodePtr);
-            
-            while(node.Value.Name != nameLoc)
+            var node = new TypedPointer<LinkedListNode>(listHead);
+            while (node.Value.Name != nameLoc.Address)
             {
                 node = node.Value.Next;
             }
 
-            var myFactory = new NativeComponentFactory(api, new MyDebugWriteFileFactory());
-            OverwriteFactoryVtable(node.Value.Data, myFactory.Instance);
-            node.Value.Data = myFactory.Instance;
+            nodeOut = node;
+            return true;
+        }
 
+        private void PatchBuiltin(string name, INativeComponentFactory factory)
+        {
+            if(!StringMapGetNode(name, false, out var node))
+            {
+                throw new InvalidOperationException($"Cannot get builtin with name \"{name}\"");
+            }
+            var natFactory = new NativeComponentFactory(api, factory);
+            OverwriteFactoryVtable(node.Value.Data, natFactory.Instance);
+            node.Value.Data = natFactory.Instance;
+        }
 
-            //var compo = api.compo_get(api._stringPool, name, name.Length);
-            Console.WriteLine(node.Value.Data);
-
-            _needInit = false;
+        private void PatchBuiltins()
+        {
+            PatchBuiltin("DebugWriteFile", new MyDebugWriteFileFactory());
+            PatchBuiltin("DebugWriteFileCompositeFormat", new MyDebugWriteFileCompositeFormatFactory());
+            PatchBuiltin("DebugWriteFileRiftTable", new MyDebugWriteFileRiftTableFactory());
         }
 
         public NativeMSDelta()
@@ -977,6 +1127,8 @@ namespace Smx.Winter.MsDelta
                 buffer_object_init = GetFunction<pfnBufferObjectInit>("?Init@BufferObject@compo@@AEAAXPEAVMemoryManager@2@W4Type@MemoryBlock@2@PEAE_K@Z"),
                 memory_block_resize = GetFunction<pfnMemoryBlockResize>("?Resize@MemoryBlock@compo@@SAXPEAPEAV12@_K_N@Z"),
                 buffer_object_get_start_writable = GetFunction<pfnBufferObjectGetStartWritable>("?GetStartWriteable@BufferObject@compo@@QEAAPEAEXZ"),
+                rift_table_serialize = GetFunction<pfnRiftTableSerialize>("?Serialize@RiftTable@compo@@SAPEAVBufferObject@2@PEAVEnvironment@2@PEBVObject@2@@Z"),
+                composite_format_serialize = GetFunction<pfnCompositeFormatSerialize>("?Serialize@CompositeFormat@compo@@SAPEAVBufferObject@2@PEAVEnvironment@2@PEBVObject@2@@Z"),
                 gp_environment = GetSymbolAddress("?g_environment@PullcapiContext@compo@@0PEAVEnvironment@2@EA"),
                 gp_applyPatchFactory = GetSymbolAddress("?g_applyPatchFactory@PullcapiContext@compo@@0PEAVComponentFactory@2@EA"),
                 gp_bufferObject = GetSymbolAddress("??_7BufferObject@compo@@6B@")
@@ -985,7 +1137,7 @@ namespace Smx.Winter.MsDelta
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
             //TestNativeComponent();
-            PatchDebugWriteFile();
+            PatchBuiltins();
         }
     }
 }
