@@ -1,4 +1,5 @@
-﻿using Smx.PDBSharp;
+﻿using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -178,40 +179,52 @@ namespace Smx.Winter.MsDelta
 
         public MemoryAllocator NewHeapAllocator(TypedPointer<HeapMemoryManagerInstance> mman)
         {
-            return new MemoryAllocator(
-                new MemoryAllocator.pfnAlloc((size) =>
+            return new MemoryAllocator(new CustomMemoryManager(
+                new CustomMemoryManager.pfnAlloc((size) =>
                 {
-                    return mman.Value.Vtbl.Value.Alloc.Func(mman, size);
+                    return mman.Value.Vtbl.Value.Alloc.Func(mman, (nint)size);
                 }),
-                new MemoryAllocator.pfnFree((ptr, size) =>
+                new CustomMemoryManager.pfnFree((ptr) =>
                 {
                     mman.Value.Vtbl.Value.Free.Func(mman, ptr);
-                })
-            );
+                }), null
+            ));
         }
 
         private MemoryAllocator NewCppAllocator()
         {
-            var pfnDelete = this.delete;
-            return new MemoryAllocator(
-                new MemoryAllocator.pfnAlloc(this.cdp_new),
-                (nint ptr, nint size) =>
-                {
-                    pfnDelete(ptr);
-                }
-            );
+            return new MemoryAllocator(new MsDeltaMemoryManager(this));
         }
 
-        public MemoryHandle Alloc(nint size, bool owned = true)
+        private class MsDeltaMemoryManager : IMemoryManager
         {
-            var mem = this.cdp_new(size);
-            mem.AsSpan<byte>((int)size).Clear();
-            
-            var pfnDelete = this.delete;
-            return new MemoryHandle(mem, size, MemoryHandleType.Custom, owned: owned, pfnFree: (nint ptr, nint size) =>
+            private readonly NativeApi api;
+
+            public MsDeltaMemoryManager(NativeApi api){
+                this.api = api;
+            }
+
+            public nint Alloc(nuint size)
             {
-                pfnDelete(ptr);
-            });
+                var mem = this.api.cdp_new((nint)size);
+                mem.AsSpan<byte>((int)size).Clear();
+                return mem;
+            }
+
+            public void Free(nint ptr)
+            {
+                this.api.delete(ptr);
+            }
+
+            public nint Realloc(nint ptr, nuint size)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public NativeMemoryHandle Alloc(nint size, bool owned = true)
+        {
+            return CppAllocator.Alloc((nuint)size, owned);
         }
 
         public TypedMemoryHandle<ComponentObject> CreateComponent(nint vtbl, ComponentType type)
@@ -222,7 +235,7 @@ namespace Smx.Winter.MsDelta
                 throw new InvalidOperationException();
             }
 
-            var obj = MemoryHandle.AllocNative<ComponentObject>();
+            var obj = MemoryNative.Alloc<ComponentObject>();
             obj.Value.initialized.Value = false;
             obj.Value.vtbl = vtbl;
             obj.Value.Type = type;
@@ -328,7 +341,7 @@ namespace Smx.Winter.MsDelta
     abstract class NativeComponentBase : INativeComponent, IDisposable
     {
         private readonly TypedMemoryHandle<vtb_Component> vtblComponent;
-        private readonly MemoryHandle instanceData;
+        private readonly NativeMemoryHandle instanceData;
         private bool _disposed;
         protected readonly NativeApi api;
 
@@ -339,7 +352,7 @@ namespace Smx.Winter.MsDelta
             Dispose();
         }
 
-        protected TypedPointer<T> GetSharedInput<T>(int index) where T : struct
+        protected TypedPointer<T> GetSharedInput<T>(int index) where T : unmanaged
         {
             return new TypedPointer<T>(api.get_shared_input(Instance, index));
         }
@@ -566,7 +579,7 @@ namespace Smx.Winter.MsDelta
         private readonly TypedMemoryHandle<vtb_ComponentFactory> vtblFactory;
         private readonly NativeApi api;
         private readonly INativeComponentFactory managedFactory;
-        private readonly MemoryHandle instanceData;
+        private readonly NativeMemoryHandle instanceData;
         private bool _disposed;
 
         public nint Instance => instanceData.Address;
@@ -618,9 +631,9 @@ namespace Smx.Winter.MsDelta
             var inputSize = Marshal.SizeOf<ComponentInputPortSpec>() * nInputs;
             var outputSize = Marshal.SizeOf(Enum.GetUnderlyingType(typeof(ComponentType))) * nOutputs;
 
-            using var arena = MemoryHandle.AllocHGlobal(inputSize + outputSize);
+            using var arena = MemoryHGlobal.Alloc((nuint)(inputSize + outputSize));
             
-            var spanIn = arena.GetSpan<ComponentInputPortSpec>();
+            var spanIn = arena.GetSpan().Cast<ComponentInputPortSpec>();
             for(int i=0; i<nInputs; i++)
             {
                 spanIn[i] = managedFactory.InputSpecs[i];
@@ -728,13 +741,12 @@ namespace Smx.Winter.MsDelta
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0)]
-    internal struct ComponentObject
+    internal unsafe struct ComponentObject
     {
         public nint vtbl;
         public CppBool initialized;
         public ComponentType Type;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-        public byte[] _u0; // first byte is written to in ctors, apparently
+        public fixed byte _u0[8]; // first byte is written to in ctors, apparently
         public ulong _u1;
 
         public ComponentObject(nint ptr)
@@ -809,7 +821,7 @@ namespace Smx.Winter.MsDelta
             var memName = Marshal.StringToHGlobalAnsi(mangledName);
             try
             {
-                using var mem = MemoryHandle.AllocHGlobal((nint)MAX_SYM_BUF);
+                using var mem = MemoryHGlobal.Alloc((nint)MAX_SYM_BUF);
                 unsafe
                 {
                     SYMBOL_INFO* psi = (SYMBOL_INFO*)mem.Address.ToPointer();
@@ -869,9 +881,9 @@ namespace Smx.Winter.MsDelta
             _needInit = false;
         }
 
-        private MemoryHandle GetInputBuffer(byte[] data, out nint buffer)
+        private NativeMemoryHandle GetInputBuffer(byte[] data, out nint buffer)
         {
-            var mem = MemoryHandle.AllocHGlobal(data.Length);
+            var mem = MemoryHGlobal.Alloc(data.Length);
             Marshal.Copy(data, 0, mem.Address, data.Length);
             var deltaInput = new DELTA_INPUT
             {
@@ -922,10 +934,10 @@ namespace Smx.Winter.MsDelta
             outputs = new byte[compo.Info.NumOutputs][];
 
             // NOTE: MUST be Native and not HGlobal due to the heap used by MSDelta
-            using var argsList = MemoryHandle.AllocNative(nint.Size * argv.Length);
-            using var outputsList = MemoryHandle.AllocNative(nint.Size * outputs.Length);
+            using var argsList = MemoryNative.Alloc(nint.Size * argv.Length);
+            using var outputsList = MemoryNative.Alloc(nint.Size * outputs.Length);
 
-            var handles = new MemoryHandle[argv.Length];
+            var handles = new NativeMemoryHandle[argv.Length];
             for(int i=0; i<argv.Length; i++)
             {
                 if (compo.Info.InputInfo[i].Type != ComponentType.Buffer)

@@ -12,6 +12,8 @@ using Windows.Win32;
 using Windows.Win32.Security;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Memory;
+using System.Runtime.CompilerServices;
+using Smx.SharpIO.Memory;
 
 namespace Smx.Winter;
 
@@ -68,7 +70,7 @@ public class Util
         {
             throw new InvalidOperationException();
         }
-        using var buf = MemoryHandle.AllocHGlobal((nint)(sizeof(char) * cchName));
+        using var buf = MemoryHGlobal.Alloc((nint)(sizeof(char) * cchName));
         var pBuf = buf.ToPWSTR();
         using var hFile = PInvoke.FindFirstFileName(path, 0, ref cchName, pBuf);
         if (hFile.IsInvalid) throw new InvalidOperationException();
@@ -85,7 +87,7 @@ public class Util
                     switch (Marshal.GetLastWin32Error())
                     {
                         case (int)WIN32_ERROR.ERROR_MORE_DATA:
-                            buf.Realloc((nint)(sizeof(char) * cchName));
+                            buf.Realloc(sizeof(char) * cchName);
                             break;
                         case (int)WIN32_ERROR.ERROR_HANDLE_EOF:
                         case (int)WIN32_ERROR.ERROR_NO_MORE_FILES:
@@ -114,9 +116,9 @@ public class Util
         var tp = new TOKEN_PRIVILEGES
         {
             PrivilegeCount = 1,
-            Privileges = new __LUID_AND_ATTRIBUTES_1
+            Privileges = new VariableLengthInlineArray<LUID_AND_ATTRIBUTES>
             {
-                _0 = new LUID_AND_ATTRIBUTES
+                e0 = new LUID_AND_ATTRIBUTES
                 {
                     Luid = luid,
                     Attributes = TOKEN_PRIVILEGES_ATTRIBUTES.SE_PRIVILEGE_ENABLED
@@ -128,12 +130,11 @@ public class Util
         {
             if (!PInvoke.AdjustTokenPrivileges(
                 hToken, false,
-                tp, (uint)Marshal.SizeOf(tp),
+                &tp, (uint)Marshal.SizeOf(tp),
                 null, null))
             {
                 throw new InvalidOperationException();
             }
         }
-
     }
 }

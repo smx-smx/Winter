@@ -6,7 +6,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using System.Runtime.InteropServices;
+using Smx.SharpIO.Memory;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Smx.Winter
@@ -20,9 +21,9 @@ namespace Smx.Winter
             public ulong MaximumLength;
             public nint Buffer;
 
-            public static MemoryHandle CreateFromString(string str, out LUNICODE_STRING value)
+            public static NativeMemoryHandle CreateFromString(string str, out LUNICODE_STRING value)
             {
-                var memoryHandle = MemoryHandle.AllocNative(Encoding.Unicode.GetByteCount(str));
+                var memoryHandle = MemoryNative.Alloc(Encoding.Unicode.GetByteCount(str));
                 Marshal.Copy(Encoding.Unicode.GetBytes(str), 0, memoryHandle.Address, (int)memoryHandle.Size);
                 value = new LUNICODE_STRING
                 {

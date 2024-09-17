@@ -28,7 +28,6 @@ namespace Smx.Winter
             sc.AddSingleton<AssemblyReader>();
             sc.AddSingleton<ComponentFactory>();
             sc.AddSingleton<WcpLibraryAccessor>();
-            sc.AddSingleton<DeltaUnpacker>();
             sc.AddSingleton<Program>();
         }
 

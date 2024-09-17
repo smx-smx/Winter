@@ -16,6 +16,7 @@ using Windows.Win32.Security;
 using Windows.Win32.System.Services;
 using Windows.Win32.System.Threading;
 using Windows.Win32.System.StationsAndDesktops;
+using Smx.SharpIO.Memory;
 
 namespace Smx.Winter;
 
@@ -95,7 +96,7 @@ public class ElevationService
                 USER_OBJECT_INFORMATION_INDEX.UOI_NAME,
                 null, 0, &size);
         }
-        using var buf = MemoryHandle.AllocHGlobal((nint)size);
+        using var buf = MemoryHGlobal.Alloc(size);
         unsafe
         {
             PInvoke.GetUserObjectInformation(
@@ -118,7 +119,7 @@ public class ElevationService
 
         var winsta = GetCurrentWindowStation();
         var desktop = $@"{winsta}\Default";
-        using var lpDesktop = MemoryHandle.AllocHGlobal(Encoding.Unicode.GetByteCount(desktop));
+        using var lpDesktop = MemoryHGlobal.Alloc(Encoding.Unicode.GetByteCount(desktop));
         Marshal.Copy(Encoding.Unicode.GetBytes(desktop), 0, lpDesktop.Address, (int)lpDesktop.Size);
 
         var si = new STARTUPINFOW();
@@ -144,12 +145,12 @@ public class ElevationService
         using var hSCManager = PInvoke.OpenSCManager(
             null,
             PInvoke.SERVICES_ACTIVE_DATABASE,
-            (uint)GENERIC_ACCESS_RIGHTS.GENERIC_EXECUTE).AsManaged();
+            (uint)GENERIC_ACCESS_RIGHTS.GENERIC_EXECUTE);
 
         using var hService = PInvoke.OpenService(
             hSCManager,
             "TrustedInstaller",
-            (uint)(GENERIC_ACCESS_RIGHTS.GENERIC_READ | GENERIC_ACCESS_RIGHTS.GENERIC_EXECUTE)).AsManaged();
+            (uint)(GENERIC_ACCESS_RIGHTS.GENERIC_READ | GENERIC_ACCESS_RIGHTS.GENERIC_EXECUTE));
 
         var status = new SERVICE_STATUS_PROCESS();
         var pBuf = MemoryMarshal.Cast<SERVICE_STATUS_PROCESS, byte>(

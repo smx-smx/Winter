@@ -9,6 +9,8 @@
 ﻿using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using Smx.SharpIO;
+using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory;
 using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
@@ -89,8 +91,8 @@ public class ManagedRegistryKey : IDisposable
 
     private WIN32_ERROR EnumKey(
         uint i,
-        MemoryHandle bufKeyName, out string keyName,
-        MemoryHandle bufKeyClass, out string keyClass
+        NativeMemoryHandle bufKeyName, out string keyName,
+        NativeMemoryHandle bufKeyClass, out string keyClass
     )
     {
         WIN32_ERROR res;
@@ -119,7 +121,7 @@ public class ManagedRegistryKey : IDisposable
 
     private WIN32_ERROR EnumValue(
         uint i,
-        MemoryHandle bufValueName, out string valueName
+        NativeMemoryHandle bufValueName, out string valueName
     )
     {
         uint type;
@@ -218,7 +220,7 @@ public class ManagedRegistryKey : IDisposable
             throw new Win32Exception((int)res);
         }
 
-        using var buf = MemoryHandle.AllocHGlobal((nint)cbData);
+        using var buf = MemoryHGlobal.Alloc((nint)cbData);
         unsafe {
             res = PInvoke.RegGetValue(
                 keyHandle, null, valueName,
@@ -281,8 +283,8 @@ public class ManagedRegistryKey : IDisposable
             var cchName = info.MaxSubkeyLength + 1;
             var cchClass = info.MaxClassLength + 1;
             
-            using var bufKeyName = MemoryHandle.AllocHGlobal(cchName * sizeof(char));
-            using var bufKeyClass = MemoryHandle.AllocHGlobal(cchClass * sizeof(char));
+            using var bufKeyName = MemoryHGlobal.Alloc(cchName * sizeof(char));
+            using var bufKeyClass = MemoryHGlobal.Alloc(cchClass * sizeof(char));
 
             WIN32_ERROR res = EnumKey(i,
                 bufKeyName, out var keyName,
@@ -308,7 +310,7 @@ public class ManagedRegistryKey : IDisposable
         for(uint i=0; i<info.NumberOfValues; i++)
         {
             var cchValueName = info.MaxValueNameLength + 1;
-            using var bufValueName = MemoryHandle.AllocHGlobal(cchValueName * sizeof(char));
+            using var bufValueName = MemoryHGlobal.Alloc(cchValueName * sizeof(char));
 
             WIN32_ERROR res = EnumValue(i,
                 bufValueName, out var valueName

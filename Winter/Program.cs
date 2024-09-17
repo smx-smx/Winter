@@ -6,28 +6,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
-using Smx.PDBSharp.Thunks;
+using Microsoft.Extensions.DependencyInjection;
 using Smx.SharpIO;
+using Smx.SharpIO.Memory;
 using Smx.Winter.MsDelta;
 using Smx.Winter.Tools;
-using System;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.ComponentModel.Design;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics.Arm;
-using System.Text;
-using System.Xml.Linq;
 using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.Security;
+using Windows.Win32.System.Services;
 
 namespace Smx.Winter;
 
@@ -57,7 +45,7 @@ public static class HandleExtensions
 
 public static class DisposableMemoryExtensions
 {
-    public static unsafe PWSTR ToPWSTR(this MemoryHandle mem)
+    public static unsafe PWSTR ToPWSTR(this NativeMemoryHandle mem)
     {
         return new PWSTR((char *)mem.Address.ToPointer());
     }
