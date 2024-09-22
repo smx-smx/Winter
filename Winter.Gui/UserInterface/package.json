@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "gen": "gen.bat",
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",

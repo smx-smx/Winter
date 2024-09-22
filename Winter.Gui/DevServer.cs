@@ -33,9 +33,24 @@ public class DevServer
     {
         var projDir = GetProjectDirectory();
 
+        var proc = Process.Start(new ProcessStartInfo() {
+            WorkingDirectory = Path.Combine(projDir, ProgramDefaults.DevUserInterfaceDirectory),
+            UseShellExecute = false,
+            FileName = "cmd",
+            Arguments = "/C gen.bat"
+        });
+        if(proc == null) throw new InvalidOperationException();
+        await proc.WaitForExitAsync();
+        if(proc.ExitCode != 0){
+            throw new InvalidOperationException("gen command failed");
+        }
+        proc.Dispose();
+
+        var workingDirectory = Path.Combine(projDir, ProgramDefaults.DevUserInterfaceDirectory);
+
         // start a separate process with the npm command.
         var cmd = Cli.Wrap(ProgramDefaults.DevTerminalExecutable)
-            .WithWorkingDirectory(Path.Combine(projDir, ProgramDefaults.DevUserInterfaceDirectory))
+            .WithWorkingDirectory(workingDirectory)
             .WithArguments("/C " + ProgramDefaults.DevRunUserInterfaceDevMode);
 
         // listen for all incoming events, especially the stdout from the dev server

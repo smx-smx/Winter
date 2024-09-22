@@ -139,18 +139,6 @@ class Program
         if (useDevServer)
         {
             windowTitle = "My Application (Debug)";
-            new Task(async () =>
-            {
-                try {
-                    await devServer.Start();
-                } catch(OperationCanceledException){
-                    Console.WriteLine("DevServer stopped");
-                }
-            }, cts.Token).Start();
-
-            // wait until we were able to read the dev-server url from the stdout of the npm run
-            // so that we know were Photino should navigate.
-            devServer.WaitUntilReady();
         } else {
             windowTitle = "My Application (Release)";
         }
@@ -184,6 +172,7 @@ class Program
                 Console.WriteLine("ApiServer stopped");
             }
         }, cts.Token);
+        aspnetTask.Start();
 
         var shutdown = () => {
             Console.WriteLine("Closing");
@@ -203,6 +192,18 @@ class Program
 
         if (useDevServer)
         {
+            new Task(async () =>
+            {
+                try {
+                    await devServer.Start();
+                } catch(OperationCanceledException){
+                    Console.WriteLine("DevServer stopped");
+                }
+            }, cts.Token).Start();
+
+            // wait until we were able to read the dev-server url from the stdout of the npm run
+            // so that we know were Photino should navigate.
+            devServer.WaitUntilReady();
             window.Load(devServer.GetUrl());
         }
         else
@@ -210,7 +211,6 @@ class Program
             window.Load(baseUrl + "/index.html");
         }
 
-        aspnetTask.Start();
         window.WaitForClose(); // Starts the application event loop
         shutdown();
     }
