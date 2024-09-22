@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using Microsoft.Win32.SafeHandles;
+using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -17,6 +17,7 @@ using Windows.Win32.System.Services;
 using Windows.Win32.System.Threading;
 using Windows.Win32.System.StationsAndDesktops;
 using Smx.SharpIO.Memory;
+using System.ComponentModel;
 
 namespace Smx.Winter;
 
@@ -32,28 +33,34 @@ public class ElevationService
         Util.EnablePrivilege(PInvoke.SE_IMPERSONATE_NAME);
     }
 
-    SafeFileHandle DuplicateTokenEx(
+    public static SafeFileHandle DuplicateTokenEx(
         SafeHandle hExistingToken,
         TOKEN_ACCESS_MASK dwDesiredAccess,
         SECURITY_ATTRIBUTES? lpTokenAttributes,
         SECURITY_IMPERSONATION_LEVEL ImpersonationLevel,
         TOKEN_TYPE TokenType
     )
-        {
-            PInvoke.DuplicateTokenEx(
-                hExistingToken,
-                dwDesiredAccess,
-                lpTokenAttributes,
-                ImpersonationLevel,
-                TokenType,
-                out var newToken
-            );
-            return newToken;
-        }
-
-    SafeFileHandle ImpersonateProcess(SafeFileHandle hProc)
     {
-        using var hSystemToken = Util.OpenProcessToken(hProc, (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED);
+        PInvoke.DuplicateTokenEx(
+            hExistingToken,
+            dwDesiredAccess,
+            lpTokenAttributes,
+            ImpersonationLevel,
+            TokenType,
+            out var newToken
+        );
+        return newToken;
+    }
+
+    public static SafeFileHandle OpenProcessToken(SafeFileHandle hProc, TOKEN_ACCESS_MASK flags)
+    {
+        PInvoke.OpenProcessToken(hProc, flags, out var hToken);
+        return hToken;
+    }
+
+    public static SafeFileHandle ImpersonateProcess(SafeFileHandle hProc)
+    {
+        using var hSystemToken = OpenProcessToken(hProc, (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED);
 
         var tokenAttributes = new SECURITY_ATTRIBUTES
         {
@@ -71,15 +78,55 @@ public class ElevationService
         );
         if (hDupToken == null)
         {
-            throw new InvalidOperationException();
+            throw new Win32Exception();
         }
 
         if (!PInvoke.ImpersonateLoggedOnUser(hDupToken))
         {
-            throw new InvalidOperationException();
+            throw new Win32Exception();
         }
 
         return hDupToken;
+    }
+
+
+    public static void RunAsToken<T>(SafeFileHandle hToken, Action action)
+    {
+        RunAsToken(hToken, () =>
+        {
+            action();
+            return 0;
+        });
+    }
+
+    public static T RunAsToken<T>(SafeFileHandle hToken, Func<T> action)
+    {
+        if (!PInvoke.ImpersonateLoggedOnUser(hToken))
+        {
+            throw new Win32Exception();
+        }
+
+        var res = action();
+
+        if (!PInvoke.RevertToSelf())
+        {
+            throw new Win32Exception();
+        }
+        return res;
+    }
+
+    public static T RunAsProcess<T>(uint dwProcessId, Func<T> action)
+    {
+        using var handle = GetProcessHandleForImpersonation(dwProcessId);
+        using var token = ImpersonateProcess(handle);
+
+        var res = action();
+
+        if (!PInvoke.RevertToSelf())
+        {
+            throw new Win32Exception();
+        }
+        return res;
     }
 
     private string? GetCurrentWindowStation()
@@ -178,13 +225,14 @@ public class ElevationService
         throw new InvalidOperationException("Failed to start TrustedInstaller");
     }
 
-    SafeFileHandle GetProcessHandleForImpersonation(uint dwProcessId)
+    public static SafeFileHandle GetProcessHandleForImpersonation(uint dwProcessId)
     {
         return PInvoke.OpenProcess_SafeHandle(0
             | PROCESS_ACCESS_RIGHTS.PROCESS_DUP_HANDLE
             | PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_INFORMATION,
             false, dwProcessId);
     }
+
     public SafeHandle ImpersonateSystem()
     {
         using var winlogon = Process.GetProcessesByName("winlogon").FirstOrDefault();

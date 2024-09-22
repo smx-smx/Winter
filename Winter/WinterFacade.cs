@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,7 +25,6 @@ namespace Smx.Winter
             sc.AddSingleton<WindowsSystem>();
             sc.AddSingleton<ElevationService>();
             sc.AddSingleton<ComponentStoreService>();
-            sc.AddSingleton<AssemblyReader>();
             sc.AddSingleton<ComponentFactory>();
             sc.AddSingleton<WcpLibraryAccessor>();
             sc.AddSingleton<Program>();

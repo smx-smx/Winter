@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -35,6 +35,11 @@ namespace Smx.Winter
                 }
                 return _theLibrary;
             }
+        }
+
+        public void UnloadServicingStack(){
+            _theLibrary?.Dispose();
+            _theLibrary = null;
         }
 
         private string GetCurrentWCPVersion()

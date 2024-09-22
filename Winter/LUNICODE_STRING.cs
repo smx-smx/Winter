@@ -7,6 +7,7 @@
  */
 #endregion
 using Smx.SharpIO.Memory;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -20,6 +21,15 @@ namespace Smx.Winter
             public ulong Length;
             public ulong MaximumLength;
             public nint Buffer;
+
+            public override string ToString()
+            {
+                if(Buffer == 0 || Length < 1)
+                {
+                    return "";
+                }
+                return Marshal.PtrToStringUni(Buffer, (int)Length);
+            }
 
             public static NativeMemoryHandle CreateFromString(string str, out LUNICODE_STRING value)
             {

@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using System.Xml.Serialization;
+using System.Xml.Serialization;
 
 using Smx.Winter.SchemaDefinitions.EventsNS;
 using Smx.Winter.SchemaDefinitions.RescacheV1;

@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using Microsoft.VisualBasic.FileIO;
+using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Buffers.Binary;
 using System.Collections;
@@ -30,8 +30,8 @@ namespace Smx.Winter
     {
         private Memory<byte> dictionary;
 
-        public AssemblyReader(WcpLibraryAccessor wcp) {
-            this.dictionary = wcp.ServicingStack.GetPatchDictionary();
+        public AssemblyReader(WcpLibrary wcp) {
+            this.dictionary = wcp.GetPatchDictionary();
         }
 
         private const uint DCM_MAGIC = 0x44434D01;

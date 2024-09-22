@@ -6,7 +6,8 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using System;
+using Smx.Winter.Cbs;
+using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -20,6 +21,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.System.Com;
 using Windows.Win32.System.Memory;
 using static Smx.Winter.ComponentStoreService;
 using static Smx.Winter.IRtlAppIdAuthority;

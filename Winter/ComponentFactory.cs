@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using Smx.Winter.Cbs;
+using Smx.Winter.Cbs;
 using System;
 using System.Collections.Generic;
 using System.Linq;

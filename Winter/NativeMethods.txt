@@ -99,3 +99,10 @@ SYMOPT_DEBUG
 SYMBOL_INFO
 MAX_SYM_NAME
 SymCleanup
+
+CoGetMalloc
+IClassFactory
+CoCreateInstance
+
+OutputDebugString
+RevertToSelf

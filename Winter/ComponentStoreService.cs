@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-﻿using Smx.Winter.Cbs;
+using Smx.Winter.Cbs;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
@@ -71,7 +71,7 @@ namespace Smx.Winter
         public IEnumerable<string> Components => hkey.KeyNames;
     }
 
-    public partial class ComponentStoreService(WindowsSystem windows, AssemblyReader asmReader)
+    public partial class ComponentStoreService(WindowsSystem windows)
     {
         private void PrintHashList(string hashList)
         {
@@ -188,6 +188,9 @@ namespace Smx.Winter
         {
             get
             {
+                var wcpAcc = new WcpLibraryAccessor(windows);
+                var asmReader = new AssemblyReader(wcpAcc.ServicingStack);
+
                 using var hkey = ManagedRegistryKey.Open(Registry.KEY_PACKAGES);
                 foreach(var k in hkey.KeyNames)
                 {

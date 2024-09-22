@@ -13,9 +13,13 @@ using Smx.Winter.MsDelta;
 using Smx.Winter.Tools;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Services;
+using Smx.Winter.Cbs.Native;
+using Smx.Winter.Cbs;
+using Windows.Win32.System.Com;
 
 namespace Smx.Winter;
 
@@ -56,22 +60,16 @@ public class Program
     private WindowsSystem windows;
     private ElevationService elevator;
     private ComponentStoreService store;
-    private readonly WcpLibrary servicingStack;
-    private readonly AssemblyReader asmReader;
 
 
     public Program(
         WindowsSystem windows,
         ElevationService elevator,
-        ComponentStoreService store,
-        WcpLibraryAccessor wcp,
-        AssemblyReader decompressor
+        ComponentStoreService store
     ) {
         this.windows = windows;
         this.elevator = elevator;
         this.store = store;
-        this.servicingStack = wcp.ServicingStack;
-        this.asmReader = decompressor;
     }
 
     public void Initialize()
@@ -84,6 +82,11 @@ public class Program
         using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SAM\SAM\Domains\Account\Users\Names\Administrator");
         hkey.GetValue("", out var type);
         Console.WriteLine(type);
+    }
+
+    private AssemblyReader NewAssemblyReader(){
+        var acc = new WcpLibraryAccessor(windows);
+        return new AssemblyReader(acc.ServicingStack);
     }
 
     public void TestAllManifests(bool parse)
@@ -102,6 +105,7 @@ public class Program
         var basePath = @"S:\out";
         if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath);
 
+        var asmReader = NewAssemblyReader();
 
         foreach (var manifest in filesIterator)
         {
@@ -120,6 +124,48 @@ public class Program
         }
     }
 
+    private delegate void EnumPackages(uint a, out IEnumCbsIdentity b);
+
+    private void TestCbsOffline(string bootDrive, string winDir, bool useOfflineServicingStack){
+        var nat = new NativeCbs(winDir);
+        var shim = nat.StackShim.SssBindServicingStack(useOfflineServicingStack ? winDir : null);
+        var cbsCorePath = shim.GetCbsCorePath();
+        Console.WriteLine($"CbsCore: {cbsCorePath}");
+        var core = new CbsCore(cbsCorePath);
+        var session = core.Initialize();
+        session.Initialize(_CbsSessionOption.CbsSessionOptionNone,
+            "Winter",
+            bootDrive, winDir);
+        session.EnumeratePackages(0x70, out var list);
+        session.Finalize(out var requiredAction);
+    }
+
+    private void TestOnline(){
+        using var nat = new NativeCbs();
+
+        if(!PInvoke.CoCreateInstance<ICbsSession>(
+            typeof(CbsSessionClass).GUID,
+            null,
+            CLSCTX.CLSCTX_LOCAL_SERVER,
+            out var localSession
+        ).Succeeded){
+            throw new InvalidOperationException("Failed to create CbsSession");
+        }
+        localSession.Initialize(_CbsSessionOption.CbsSessionOptionNone, "Winter", null, null);
+        localSession.EnumeratePackages(0x70, out var list1);
+        while(true){
+            list1.Next(1, out var item, out var fetched);
+            if(fetched == 0) break;
+            Console.WriteLine(item.GetStringId());
+        }
+        localSession.Finalize(out var requiredAction1);
+    }
+
+    public void TestCbsNative()
+    {
+        TestCbsOffline(@"W:", @"W:\Windows", useOfflineServicingStack: false);
+    }
+
     public void TestCBS()
     {
         /*
@@ -134,6 +180,9 @@ public class Program
         }
         return;
         */
+
+        var acc = new WcpLibraryAccessor(windows);
+        var servicingStack = acc.ServicingStack;
 
         foreach (var cmp in store.Components)
         {
@@ -153,6 +202,7 @@ public class Program
 
     public void ParseAllUpdateModules()
     {
+        var asmReader = NewAssemblyReader();
         foreach (string item in windows.AllModules)
         {
             using var stream = new FileStream(item, FileMode.Open, FileAccess.Read);
@@ -273,6 +323,16 @@ public class Program
             case "test-all":
                 p.TestAllManifests(true);
                 break;
+            case "test-cbs-native":
+                /**
+                  * need to start a new thread to "consolidate" the current Token
+                  * otherwise CBS will call `ImpersonateSelf(SecurityImpersonation)`
+                  * which reverts all `AdjustTokenPrivilege` calls made so far
+                  */
+                new Thread(() => {
+                    p.TestCbsNative();
+                }).Start();
+                break;
             case "test-cbs":
                 p.TestCBS();
                 break;
@@ -285,7 +345,7 @@ public class Program
 
                     using var input = MFile.Open(args[1], FileMode.Open, FileAccess.Read, FileShare.Read);
                     using var stream = new SpanStream(input);
-                    var decoded = new AssemblyReader(wcpAcc).ReadToString(stream);
+                    var decoded = new AssemblyReader(wcpAcc.ServicingStack).ReadToString(stream);
                     Console.WriteLine(decoded);
                     break;
                 }

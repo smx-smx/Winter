@@ -1,0 +1,5 @@
+wwwroot/*
+!wwwroot/.gitkeep
+!wwwroot/favicon.ico
+bin/
+obj/
