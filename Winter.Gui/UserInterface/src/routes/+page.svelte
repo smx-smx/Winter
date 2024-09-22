@@ -1,6 +1,5 @@
 <script lang="ts">
 import { Apis } from '$lib/apis';
-import { Button } from 'flowbite-svelte';
 
 let windirPath = '';
 let components:string[] = [];
@@ -23,7 +22,7 @@ async function startCbsSession(){
 </script>
 
 <div>
-	<Button on:click={() => startCbsSession()}>Start CBS session</Button>
+	<button on:click={() => startCbsSession()}>Start CBS session</button>
 	{windirPath}
 </div>
 
