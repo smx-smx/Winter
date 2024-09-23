@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Apis } from '$lib/apis';
+	import { Apis } from '$lib/apis';
 
 let windirPath = '';
 let components:string[] = [];
@@ -22,12 +22,12 @@ async function startCbsSession(){
 </script>
 
 <div>
-	<button on:click={() => startCbsSession()}>Start CBS session</button>
+	<fluent-button appearance="accent" on:click={() => startCbsSession()}>Start CBS session</fluent-button>
 	{windirPath}
 </div>
 
-<ul>
+<fluent-tree-view>
 {#each components as cmp}
-	<li>{cmp}</li>
+	<fluent-tree-item>{cmp}</fluent-tree-item>
 {/each}
-</ul>
+</fluent-tree-view>
