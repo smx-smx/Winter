@@ -51,7 +51,8 @@ public class DevServer
         // start a separate process with the npm command.
         var cmd = Cli.Wrap(ProgramDefaults.DevTerminalExecutable)
             .WithWorkingDirectory(workingDirectory)
-            .WithArguments("/C " + ProgramDefaults.DevRunUserInterfaceDevMode);
+            .WithArguments("/C " + ProgramDefaults.DevRunUserInterfaceDevMode)
+            .WithStandardInputPipe(PipeSource.Null);
 
         // listen for all incoming events, especially the stdout from the dev server
         await foreach (var cmdEvent in cmd.ListenAsync(Encoding.UTF8, Encoding.UTF8, CancellationToken.None, cancelDevServer.Token))
