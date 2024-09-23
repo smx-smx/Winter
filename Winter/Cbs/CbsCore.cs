@@ -33,7 +33,7 @@ namespace Smx.Winter.Cbs
         );
 
         private delegate void vpfnCustomLogging(int tag, [MarshalAs(UnmanagedType.LPStr)] string msg);
-        private delegate void pfnCbsCoreSetCustomLogging(vpfnCustomLogging loggingFunction);
+        private delegate void pfnCbsCoreSetCustomLogging(vpfnCustomLogging? loggingFunction);
 
         private readonly FreeLibrarySafeHandle _handle;
         private readonly pfnCbsCoreInitialize _cbsCoreInitialize;
@@ -86,6 +86,7 @@ namespace Smx.Winter.Cbs
         public void Dispose()
         {
             _cbsCoreFinalize();
+            _cbsCoreSetCustomLogging(null);
             _handle.Dispose();
         }
     }
