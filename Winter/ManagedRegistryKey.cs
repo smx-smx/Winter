@@ -45,7 +45,8 @@ public class ManagedRegistryKey : IDisposable
 
     public ManagedRegistryKey this[string sub]
     {
-        get {
+        get
+        {
             return Open(System.IO.Path.Combine(Path, sub));
         }
     }
@@ -156,7 +157,7 @@ public class ManagedRegistryKey : IDisposable
         catch (Win32Exception ex)
         {
             value = default;
-            if(ex.ErrorCode == (int)WIN32_ERROR.ERROR_OBJECT_NOT_FOUND)
+            if (ex.ErrorCode == (int)WIN32_ERROR.ERROR_OBJECT_NOT_FOUND)
             {
                 return false;
             }
@@ -168,10 +169,11 @@ public class ManagedRegistryKey : IDisposable
     {
         var v = GetValue(valueName, out var type);
         var t = typeof(T);
-        if(t.IsAssignableFrom(typeof(string)))
+        if (t.IsAssignableFrom(typeof(string)))
         {
-            if(type != REG_VALUE_TYPE.REG_SZ) throw new ArgumentException();
-        } else if(t.IsAssignableFrom(typeof(uint)) || t.IsAssignableFrom(typeof(int)))
+            if (type != REG_VALUE_TYPE.REG_SZ) throw new ArgumentException();
+        }
+        else if (t.IsAssignableFrom(typeof(uint)) || t.IsAssignableFrom(typeof(int)))
         {
             switch (type)
             {
@@ -181,10 +183,12 @@ public class ManagedRegistryKey : IDisposable
                 default:
                     throw new ArgumentException();
             }
-        } else if(t.IsAssignableFrom(typeof(long)) || t.IsAssignableFrom(typeof(ulong)))
+        }
+        else if (t.IsAssignableFrom(typeof(long)) || t.IsAssignableFrom(typeof(ulong)))
         {
             if (type != REG_VALUE_TYPE.REG_QWORD) throw new ArgumentException();
-        } else if (t.IsAssignableFrom(typeof(string[])))
+        }
+        else if (t.IsAssignableFrom(typeof(string[])))
         {
             switch (type)
             {
@@ -221,7 +225,8 @@ public class ManagedRegistryKey : IDisposable
         }
 
         using var buf = MemoryHGlobal.Alloc((nint)cbData);
-        unsafe {
+        unsafe
+        {
             res = PInvoke.RegGetValue(
                 keyHandle, null, valueName,
                 flags, &type_tmp, buf.Address.ToPointer(), &cbData
@@ -250,9 +255,9 @@ public class ManagedRegistryKey : IDisposable
                     }
                     var str = pStr.ToString();
                     i += sizeof(char) * (str.Length + 1);
-                    
+
                     if (str.Length == 0 && i >= cbData) { }
-                    else stringArray.Add(str);   
+                    else stringArray.Add(str);
                 }
                 return stringArray.ToArray();
             case REG_VALUE_TYPE.REG_SZ:
@@ -278,11 +283,11 @@ public class ManagedRegistryKey : IDisposable
     private IEnumerable<string> GetKeyNames()
     {
         var info = GetKeyNameLimits();
-        for(uint i=0; i<info.NumberOfSubKeys; i++)
+        for (uint i = 0; i < info.NumberOfSubKeys; i++)
         {
             var cchName = info.MaxSubkeyLength + 1;
             var cchClass = info.MaxClassLength + 1;
-            
+
             using var bufKeyName = MemoryHGlobal.Alloc(cchName * sizeof(char));
             using var bufKeyClass = MemoryHGlobal.Alloc(cchClass * sizeof(char));
 
@@ -307,7 +312,7 @@ public class ManagedRegistryKey : IDisposable
     private IEnumerable<string> GetValueNames()
     {
         var info = GetKeyNameLimits();
-        for(uint i=0; i<info.NumberOfValues; i++)
+        for (uint i = 0; i < info.NumberOfValues; i++)
         {
             var cchValueName = info.MaxValueNameLength + 1;
             using var bufValueName = MemoryHGlobal.Alloc(cchValueName * sizeof(char));
@@ -371,7 +376,7 @@ public class ManagedRegistryKey : IDisposable
         if (parts.Length < 1) return false;
 
         var root = parts[0];
-        if(root.Length <= 4)
+        if (root.Length <= 4)
         {
             if (!HIVE_SHORT_LONG.TryGetValue(root, out root)) return false;
         }
@@ -390,7 +395,7 @@ public class ManagedRegistryKey : IDisposable
 
     public static ManagedRegistryKey Open(string keyPath)
     {
-        if(!TrySplitKeyPath(keyPath, out var hive, out var subKey))
+        if (!TrySplitKeyPath(keyPath, out var hive, out var subKey))
         {
             throw new ArgumentException($"Invalid key path: \"{keyPath}\"");
         }

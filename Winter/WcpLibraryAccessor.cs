@@ -37,7 +37,8 @@ namespace Smx.Winter
             }
         }
 
-        public void UnloadServicingStack(){
+        public void UnloadServicingStack()
+        {
             _theLibrary?.Dispose();
             _theLibrary = null;
         }
@@ -81,7 +82,7 @@ namespace Smx.Winter
             }
 
             var wcp = WcpLibrary.Load(wcpPath);
-            
+
             // $DEBUG
             // wcp.GetAppIdHash(servicingStackAppID.ToString());
 

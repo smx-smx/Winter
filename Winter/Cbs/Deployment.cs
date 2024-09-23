@@ -43,7 +43,7 @@ namespace Smx.Winter.Cbs
 
         public static Deployment FromRegistryKey(ManagedRegistryKey key)
         {
-            if(!key.TryGetValue<string>("CatalogThumbprint", out var catalogThumbprint))
+            if (!key.TryGetValue<string>("CatalogThumbprint", out var catalogThumbprint))
             {
                 catalogThumbprint = null;
             }

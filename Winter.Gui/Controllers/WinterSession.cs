@@ -14,13 +14,15 @@ public class WinterSession : IDisposable
     private ICbsSession _session;
     private StartCbsSessionCommand _para;
 
-    public WinterSession(StartCbsSessionCommand para){
+    public WinterSession(StartCbsSessionCommand para)
+    {
         SessionId = Guid.NewGuid();
         _para = para;
         _session = Initialize(para);
     }
 
-    private static ICbsSession Initialize(StartCbsSessionCommand para){
+    private static ICbsSession Initialize(StartCbsSessionCommand para)
+    {
         const bool useOfflineServicingStack = false;
         var nat = new NativeCbs(para.WinDir);
         var shim = nat.StackShim.SssBindServicingStack(useOfflineServicingStack ? para.WinDir : null);
@@ -33,13 +35,18 @@ public class WinterSession : IDisposable
         return session;
     }
 
-    public IEnumerable<string> GetPackages(){
+    public IEnumerable<string> GetPackages()
+    {
         _session.EnumeratePackages(0x70, out var list);
-        while(true){
+        while (true)
+        {
             list.Next(1, out var item, out var fetched);
-            if(fetched == 0){
+            if (fetched == 0)
+            {
                 yield break;
-            } else {
+            }
+            else
+            {
                 yield return item.GetStringId();
             }
         }

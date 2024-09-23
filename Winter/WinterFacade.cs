@@ -30,13 +30,15 @@ namespace Smx.Winter
             sc.AddSingleton<Program>();
         }
 
-        public WinterFacade(IServiceProvider? services = null) {
+        public WinterFacade(IServiceProvider? services = null)
+        {
             if (services == null)
             {
                 var sc = new ServiceCollection();
                 BuildServices(sc);
                 Services = sc.BuildServiceProvider();
-            } else
+            }
+            else
             {
                 Services = services;
             }

@@ -51,7 +51,7 @@ public static class DisposableMemoryExtensions
 {
     public static unsafe PWSTR ToPWSTR(this NativeMemoryHandle mem)
     {
-        return new PWSTR((char *)mem.Address.ToPointer());
+        return new PWSTR((char*)mem.Address.ToPointer());
     }
 }
 
@@ -66,7 +66,8 @@ public class Program
         WindowsSystem windows,
         ElevationService elevator,
         ComponentStoreService store
-    ) {
+    )
+    {
         this.windows = windows;
         this.elevator = elevator;
         this.store = store;
@@ -84,7 +85,8 @@ public class Program
         Console.WriteLine(type);
     }
 
-    private AssemblyReader NewAssemblyReader(){
+    private AssemblyReader NewAssemblyReader()
+    {
         var acc = new WcpLibraryAccessor(windows);
         return new AssemblyReader(acc.ServicingStack);
     }
@@ -126,7 +128,8 @@ public class Program
 
     private delegate void EnumPackages(uint a, out IEnumCbsIdentity b);
 
-    private void TestCbsOffline(string bootDrive, string winDir, bool useOfflineServicingStack){
+    private void TestCbsOffline(string bootDrive, string winDir, bool useOfflineServicingStack)
+    {
         var nat = new NativeCbs(winDir);
         var shim = nat.StackShim.SssBindServicingStack(useOfflineServicingStack ? winDir : null);
         var cbsCorePath = shim.GetCbsCorePath();
@@ -140,22 +143,25 @@ public class Program
         session.Finalize(out var requiredAction);
     }
 
-    private void TestOnline(){
+    private void TestOnline()
+    {
         using var nat = new NativeCbs();
 
-        if(!PInvoke.CoCreateInstance<ICbsSession>(
+        if (!PInvoke.CoCreateInstance<ICbsSession>(
             typeof(CbsSessionClass).GUID,
             null,
             CLSCTX.CLSCTX_LOCAL_SERVER,
             out var localSession
-        ).Succeeded){
+        ).Succeeded)
+        {
             throw new InvalidOperationException("Failed to create CbsSession");
         }
         localSession.Initialize(_CbsSessionOption.CbsSessionOptionNone, "Winter", null, null);
         localSession.EnumeratePackages(0x70, out var list1);
-        while(true){
+        while (true)
+        {
             list1.Next(1, out var item, out var fetched);
-            if(fetched == 0) break;
+            if (fetched == 0) break;
             Console.WriteLine(item.GetStringId());
         }
         localSession.Finalize(out var requiredAction1);
@@ -252,7 +258,8 @@ public class Program
                     if (inOutSel)
                     {
                         inputs.Add(File.ReadAllBytes(arg));
-                    } else
+                    }
+                    else
                     {
                         outputFiles.Add(arg);
                     }
@@ -262,15 +269,15 @@ public class Program
 
         var code = File.ReadAllText(codeFile);
         var outputs = new byte[outputFiles.Count][];
-        
+
         var msdelta = new NativeMSDelta();
         msdelta.AddComponent(name, code);
-        if(!msdelta.Call(name, inputs.ToArray(), ref outputs))
+        if (!msdelta.Call(name, inputs.ToArray(), ref outputs))
         {
             throw new InvalidOperationException("script call failed");
         }
 
-        for(int i = 0; i < outputFiles.Count; i++)
+        for (int i = 0; i < outputFiles.Count; i++)
         {
             using var fh = new FileStream(outputFiles[i], FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
             fh.SetLength(0);
@@ -285,7 +292,8 @@ public class Program
     public static void Main(string[] args)
     {
         bool handled = true;
-        switch (args[0]) {
+        switch (args[0])
+        {
             case "msdelta-script":
                 TestMsdeltaNative(args.Skip(1));
                 break;
@@ -329,7 +337,8 @@ public class Program
                   * otherwise CBS will call `ImpersonateSelf(SecurityImpersonation)`
                   * which reverts all `AdjustTokenPrivilege` calls made so far
                   */
-                new Thread(() => {
+                new Thread(() =>
+                {
                     p.TestCbsNative();
                 }).Start();
                 break;

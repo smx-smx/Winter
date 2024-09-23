@@ -45,13 +45,14 @@ namespace Smx.Winter.Tools
             var refElements = reference.Elements();
             var patchElements = patch.Elements();
 
-            if(patch.FirstNode is XElement patchText)
+            if (patch.FirstNode is XElement patchText)
             {
                 var refChild = reference.FirstNode;
-                if(refChild.NodeType != XmlNodeType.Text)
+                if (refChild.NodeType != XmlNodeType.Text)
                 {
                     reference.AddFirst(new XText(patchText.ToString()));
-                } else
+                }
+                else
                 {
                     var referenceText = (XText)refChild;
                     if (string.IsNullOrEmpty(referenceText.ToString()) && !string.IsNullOrWhiteSpace(patchText.ToString()))
@@ -61,7 +62,7 @@ namespace Smx.Winter.Tools
                 }
             }
 
-            foreach(var pel in patchElements)
+            foreach (var pel in patchElements)
             {
                 var candidates = refElements.Where(e => e.Name == pel.Name);
                 if (!candidates.Any())
@@ -72,7 +73,7 @@ namespace Smx.Winter.Tools
 
                 // how many?
                 var isMany = patchElements.Count(x => x.Name == pel.Name) > 1;
-                if(isMany && candidates.Count() < 2)
+                if (isMany && candidates.Count() < 2)
                 {
                     // convert from one to many
                     reference.Add(pel);
@@ -93,7 +94,7 @@ namespace Smx.Winter.Tools
             var patch = XDocument.Load(xmlPath);
             if (patch == null || patch.Root == null) return;
 
-            if(Merged.Root == null)
+            if (Merged.Root == null)
             {
                 Merged.Add(new XElement(patch.Root.Name));
             }
@@ -114,7 +115,7 @@ namespace Smx.Winter.Tools
             var outFile = args[1];
 
             var xm = new XmlMerger();
-            
+
             var manifests = Directory.EnumerateFiles(manifestsPath, "*.manifest");
             var i = 0;
             var nManifests = manifests.Count();
@@ -123,7 +124,7 @@ namespace Smx.Winter.Tools
                 Console.WriteLine($"{++i}/{nManifests}: {manifest}");
                 xm.MergeFromPath(manifest);
             }
-            
+
             xm.Merged.Save(Console.Out);
             xm.Merged.Save(outFile);
         }

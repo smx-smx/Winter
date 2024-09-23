@@ -127,19 +127,22 @@ namespace Smx.Winter.Cbs
             nint offlineImagePtr = 0;
 
             SSS_BIND_CONDITION_FLAGS flags = SSS_BIND_CONDITION_FLAGS.ARCHITECTURE;
-            try {
-                if(winDir != null){
+            try
+            {
+                if (winDir != null)
+                {
                     flags |= SSS_BIND_CONDITION_FLAGS.OFFLINE_IMAGE;
                     offlineImage = MemoryHGlobal.Alloc<SSS_OFFLINE_IMAGE>();
                     offlineImage.Value.cbSize = (uint)Unsafe.SizeOf<SSS_OFFLINE_IMAGE>();
-                    
+
                     winDirStr = Marshal.StringToHGlobalUni(winDir);
-                    unsafe {
-                        offlineImage.Value.pcwszWindir = new PWSTR((char *)winDirStr.ToPointer());
+                    unsafe
+                    {
+                        offlineImage.Value.pcwszWindir = new PWSTR((char*)winDirStr.ToPointer());
                     }
                     offlineImagePtr = offlineImage.Pointer.Address;
                 }
-                
+
                 var hr = _SssBindServicingStack(
                     new SSS_BIND_PARAMETERS
                     {
@@ -157,9 +160,12 @@ namespace Smx.Winter.Cbs
                     throw new InvalidOperationException("SssBindServicingStack failed");
                 }
                 return new ServicingStackShimSession(this, cookie.Value);
-            } finally {
+            }
+            finally
+            {
                 offlineImage?.Dispose();
-                if(winDirStr != 0){
+                if (winDirStr != 0)
+                {
                     Marshal.FreeHGlobal(winDirStr);
                 }
             }

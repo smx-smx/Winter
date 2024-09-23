@@ -8,7 +8,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>Smx.Winter</RootNamespace>
     <AssemblyName>Smx.Winter</AssemblyName>
-	<!-- <OutDir>test</OutDir> -->
+    <!-- <OutDir>test</OutDir> -->
   </PropertyGroup>
 
   <ItemGroup>

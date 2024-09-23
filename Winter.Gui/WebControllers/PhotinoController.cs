@@ -19,20 +19,23 @@ public class PhotinoController : ControllerBase
     public PhotinoController(
         PhotinoWindow mainWindow,
         ILogger<PhotinoController> logger
-    ){
+    )
+    {
         _logger = logger;
         _mainWindow = mainWindow;
     }
 
     [HttpPost]
-    public string? GetRootPath([FromBody] string path){
+    public string? GetRootPath([FromBody] string path)
+    {
         return Path.GetPathRoot(path);
     }
 
     [HttpGet]
     public string? ShowOpenFolder(
         [FromQuery] string title
-    ){
+    )
+    {
         var res = _mainWindow.ShowOpenFolder(title);
         return res.FirstOrDefault();
     }

@@ -27,11 +27,13 @@ class Program
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen(c => {
+        builder.Services.AddSwaggerGen(c =>
+        {
             c.EnableAnnotations();
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Winter API", Version = "v1" });
             // Use method name as operationId
-            c.CustomOperationIds(apiDesc => {
+            c.CustomOperationIds(apiDesc =>
+            {
                 return apiDesc.TryGetMethodInfo(out MethodInfo methodInfo) ? methodInfo.Name : null;
             });
         });
@@ -42,8 +44,10 @@ class Program
 
         const string apiCorsPolicy = "ApiCorsPolicy";
 
-        builder.Services.AddCors(opts => {
-            opts.AddPolicy(apiCorsPolicy, b => {
+        builder.Services.AddCors(opts =>
+        {
+            opts.AddPolicy(apiCorsPolicy, b =>
+            {
                 b.WithOrigins("http://localhost:5173")
                     .AllowAnyHeader()
                     .AllowAnyMethod()
@@ -72,11 +76,12 @@ class Program
 
     private const string TRUSTED_INSTALLER_SID = "S-1–5–80–956008885–3418522649–1831038044–1853292631–2271478464";
 
-    private static void SetEnv_TrustedInstaller(){
+    private static void SetEnv_TrustedInstaller()
+    {
         var winDir = Environment.GetEnvironmentVariable("WinDir");
-        if(winDir == null) throw new InvalidOperationException();
+        if (winDir == null) throw new InvalidOperationException();
         var bootDrive = Path.GetPathRoot(winDir);
-        if(bootDrive == null) throw new InvalidOperationException();
+        if (bootDrive == null) throw new InvalidOperationException();
 
         var tmpPath = Path.Combine(bootDrive, "TEMP", "TrustedInstaller");
         var tmpPath_AppData = Path.Combine(tmpPath, "AppData");
@@ -102,11 +107,12 @@ class Program
         var identity = WindowsIdentity.GetCurrent();
         Console.WriteLine($"User: {identity.Name}");
         Console.WriteLine($"SID: {identity.User?.Value}");
-        if(identity.User == null || identity.User.Value != TRUSTED_INSTALLER_SID){
+        if (identity.User == null || identity.User.Value != TRUSTED_INSTALLER_SID)
+        {
             var thisProc = Process.GetCurrentProcess();
-            if(thisProc == null) throw new InvalidOperationException();
+            if (thisProc == null) throw new InvalidOperationException();
             var mainMod = thisProc.MainModule;
-            if(mainMod == null) throw new InvalidOperationException();
+            if (mainMod == null) throw new InvalidOperationException();
 
             new ElevationService().ImpersonateTrustedInstaller();
         }
@@ -139,13 +145,15 @@ class Program
         if (useDevServer)
         {
             windowTitle = "My Application (Debug)";
-        } else {
+        }
+        else
+        {
             windowTitle = "My Application (Release)";
         }
 
         SetEnv_TrustedInstaller();
 
-        if(!useDevServer)
+        if (!useDevServer)
         {
             // in release mode, we will need to create static file server, so that we can serve the static file different then index.html
             PhotinoServer
@@ -163,18 +171,23 @@ class Program
             .SetResizable(true);
 
 
-        var aspnetTask = new Task(async () => {
+        var aspnetTask = new Task(async () =>
+        {
             WebApplication? webapp = default;
-            try {
+            try
+            {
                 webapp = CreateApiServer(window, args);
                 await webapp.RunAsync(cts.Token);
-            } catch(OperationCanceledException){
+            }
+            catch (OperationCanceledException)
+            {
                 Console.WriteLine("ApiServer stopped");
             }
         }, cts.Token);
         aspnetTask.Start();
 
-        var shutdown = () => {
+        var shutdown = () =>
+        {
             Console.WriteLine("Closing");
             cts.Cancel();
 
@@ -194,9 +207,12 @@ class Program
         {
             new Task(async () =>
             {
-                try {
+                try
+                {
                     await devServer.Start();
-                } catch(OperationCanceledException){
+                }
+                catch (OperationCanceledException)
+                {
                     Console.WriteLine("DevServer stopped");
                 }
             }, cts.Token).Start();

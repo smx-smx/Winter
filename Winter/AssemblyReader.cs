@@ -30,7 +30,8 @@ namespace Smx.Winter
     {
         private Memory<byte> dictionary;
 
-        public AssemblyReader(WcpLibrary wcp) {
+        public AssemblyReader(WcpLibrary wcp)
+        {
             this.dictionary = wcp.GetPatchDictionary();
         }
 

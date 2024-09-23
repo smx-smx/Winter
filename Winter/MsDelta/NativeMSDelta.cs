@@ -169,7 +169,7 @@ namespace Smx.Winter.MsDelta
         {
             get
             {
-                if(_cppAllocator == null)
+                if (_cppAllocator == null)
                 {
                     _cppAllocator = NewCppAllocator();
                 }
@@ -200,7 +200,8 @@ namespace Smx.Winter.MsDelta
         {
             private readonly NativeApi api;
 
-            public MsDeltaMemoryManager(NativeApi api){
+            public MsDeltaMemoryManager(NativeApi api)
+            {
                 this.api = api;
             }
 
@@ -230,7 +231,7 @@ namespace Smx.Winter.MsDelta
         public TypedMemoryHandle<ComponentObject> CreateComponent(nint vtbl, ComponentType type)
         {
             var size = Unsafe.SizeOf<ComponentObject>();
-            if(size != 32)
+            if (size != 32)
             {
                 throw new InvalidOperationException();
             }
@@ -304,10 +305,14 @@ namespace Smx.Winter.MsDelta
         public delegate nint pfnMemoryManagerRealloc(TypedPointer<HeapMemoryManagerInstance> pThis, TypedPointer<nint> ppMem, nint size);
         public delegate nint pfnMemoryManagerFree(TypedPointer<HeapMemoryManagerInstance> pThis, nint pMem);
 
-        /*  0 */ private FunctionPointer<pfnDtor> _destructor;
-        /*  8 */ public FunctionPointer<pfnMemoryManagerAlloc> Alloc;
-        /* 16 */ public FunctionPointer<pfnMemoryManagerRealloc> Realloc;
-        /* 24 */ public FunctionPointer<pfnMemoryManagerFree> Free;
+        /*  0 */
+        private FunctionPointer<pfnDtor> _destructor;
+        /*  8 */
+        public FunctionPointer<pfnMemoryManagerAlloc> Alloc;
+        /* 16 */
+        public FunctionPointer<pfnMemoryManagerRealloc> Realloc;
+        /* 24 */
+        public FunctionPointer<pfnMemoryManagerFree> Free;
     }
 
     internal struct HeapMemoryManagerInstance
@@ -444,7 +449,7 @@ namespace Smx.Winter.MsDelta
         {
             var inputFilename = GetSharedInput<BufferObject>(0);
             var inputBuffer = GetSharedInput<BufferObject>(1);
-            
+
             var fileName = inputFilename.Value.ReadString();
             var buffer = inputBuffer.Value.ReadByteArray();
 
@@ -616,7 +621,7 @@ namespace Smx.Winter.MsDelta
             vtblFactory.Value.internal_instantiate.Func = this.InternalInstantiate;
             vtblFactory.Write();
             _disposed = false;
-            
+
             // write vtable
             Marshal.WriteIntPtr(instanceData.Address, vtblFactory.Address);
 
@@ -632,15 +637,15 @@ namespace Smx.Winter.MsDelta
             var outputSize = Marshal.SizeOf(Enum.GetUnderlyingType(typeof(ComponentType))) * nOutputs;
 
             using var arena = MemoryHGlobal.Alloc((nuint)(inputSize + outputSize));
-            
+
             var spanIn = arena.GetSpan().Cast<ComponentInputPortSpec>();
-            for(int i=0; i<nInputs; i++)
+            for (int i = 0; i < nInputs; i++)
             {
                 spanIn[i] = managedFactory.InputSpecs[i];
             }
 
             var spanOut = arena.Span.Slice(inputSize).Cast<ComponentType>();
-            for(int i=0; i<nOutputs; i++)
+            for (int i = 0; i < nOutputs; i++)
             {
                 spanOut[i] = managedFactory.OutputSpecs[i];
             }
@@ -698,7 +703,8 @@ namespace Smx.Winter.MsDelta
         }
     }
 
-    internal struct ComponentOutputInfoArray(nint ptr) {
+    internal struct ComponentOutputInfoArray(nint ptr)
+    {
         public ComponentOutputInfo this[int index]
         {
             get => Marshal.PtrToStructure<ComponentOutputInfo>(ptr + (4 * index));
@@ -798,7 +804,7 @@ namespace Smx.Winter.MsDelta
             {
                 throw new Exception("SymInitialize() failed");
             }
-            if(PInvoke.SymLoadModuleEx(
+            if (PInvoke.SymLoadModuleEx(
                 currentProcess,
                 null, "msdelta.dll",
                 null,
@@ -838,13 +844,14 @@ namespace Smx.Winter.MsDelta
                     }
 
                     var addr = (nint)psi->Address;
-                    if(addr == 0)
+                    if (addr == 0)
                     {
                         throw new Exception($"Failed to resolve \"{mangledName}\"");
                     }
                     return addr;
                 }
-            } finally
+            }
+            finally
             {
                 Marshal.FreeHGlobal(memName);
             }
@@ -905,7 +912,7 @@ namespace Smx.Winter.MsDelta
 
             var alloc = api.NewHeapAllocator(mman);
             using var res = alloc.Alloc<DELTA_OUTPUT>();
-            
+
             api.output_buffer_put(ptr, ref res.Value);
 
             byte[] data = new byte[res.Value.uSize];
@@ -938,7 +945,7 @@ namespace Smx.Winter.MsDelta
             using var outputsList = MemoryNative.Alloc(nint.Size * outputs.Length);
 
             var handles = new NativeMemoryHandle[argv.Length];
-            for(int i=0; i<argv.Length; i++)
+            for (int i = 0; i < argv.Length; i++)
             {
                 if (compo.Info.InputInfo[i].Type != ComponentType.Buffer)
                 {
@@ -953,7 +960,7 @@ namespace Smx.Winter.MsDelta
                     argv.Length, argsList.Address,
                     outputs.Length, outputsList.Address
                 );
-                for(int i=0; i<outputs.Length; i++)
+                for (int i = 0; i < outputs.Length; i++)
                 {
                     var ptr = Marshal.ReadIntPtr(outputsList.Address + (nint.Size * i));
                     var name = Enum.GetName(compo.Info.OutputInfo[i].Type) ?? ("Unknown 0x" + ((uint)compo.Info.OutputInfo[i].Type).ToString("X8"));
@@ -984,9 +991,10 @@ namespace Smx.Winter.MsDelta
                     }
 
                     Console.Write(sb.ToString());
-                    
+
                 }
-            } finally
+            }
+            finally
             {
                 foreach (var item in handles)
                 {
@@ -1083,7 +1091,7 @@ namespace Smx.Winter.MsDelta
 
         private void PatchBuiltin(string name, INativeComponentFactory factory)
         {
-            if(!StringMapGetNode(name, false, out var node))
+            if (!StringMapGetNode(name, false, out var node))
             {
                 throw new InvalidOperationException($"Cannot get builtin with name \"{name}\"");
             }
@@ -1110,7 +1118,7 @@ namespace Smx.Winter.MsDelta
                 throw new InvalidOperationException("failed to load msdelta.dll");
             }
             MAX_SYM_BUF = (0
-                + Marshal.SizeOf<SYMBOL_INFO>() 
+                + Marshal.SizeOf<SYMBOL_INFO>()
                 + (PInvoke.MAX_SYM_NAME * sizeof(char))
                 + sizeof(ulong) - 1
             );

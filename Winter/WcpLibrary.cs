@@ -119,7 +119,7 @@ namespace Smx.Winter
     public class ManagedAppId : IDisposable
     {
         public nint Value { get; private set; }
-        
+
         private IRtlWOFOStream wofoStream;
 
         public ManagedAppId(nint instance)
@@ -256,7 +256,7 @@ namespace Smx.Winter
         public string DecompressManifest_ToString(string manifestPath)
         {
             var manifestData = File.ReadAllBytes(manifestPath);
-            
+
             var magic = BinaryPrimitives.ReadUInt32BigEndian(manifestData);
             ManifestFileType fileType = ManifestFileType.Unknown;
             do
@@ -272,7 +272,7 @@ namespace Smx.Winter
                     fileType = ManifestFileType.Uncompressed;
                     break;
                 }
-                if(Encoding.UTF8.GetString(manifestData, 0, 5) == "<?xml")
+                if (Encoding.UTF8.GetString(manifestData, 0, 5) == "<?xml")
                 {
                     fileType = ManifestFileType.Uncompressed;
                     break;
@@ -299,7 +299,7 @@ namespace Smx.Winter
                         using var reader = new StreamReader(new MemoryStream(manifestData));
                         return reader.ReadToEnd() ?? "";
                     }
-                    
+
             }
         }
 
@@ -321,7 +321,7 @@ namespace Smx.Winter
                 var tmp = Path.Combine(
                     Path.GetTempPath(),
                     "winternals-assembly-manifest.xml"
-                    //"winternals-" + Path.GetFileName(manifestPath)
+                //"winternals-" + Path.GetFileName(manifestPath)
                 );
                 File.WriteAllText(tmp, xmlData);
                 Console.Error.WriteLine(errorMessage);
@@ -386,7 +386,7 @@ namespace Smx.Winter
 
         public void Dispose()
         {
-            if(pAuthority != 0)
+            if (pAuthority != 0)
             {
                 intfAuthority.Release(pAuthority);
                 pVtbl = 0;
@@ -477,7 +477,8 @@ namespace Smx.Winter
                     var trapAddr = Marshal.GetFunctionPointerForDelegate(pfnHashWrapped);
                     Console.WriteLine($"BT AT {trapAddr:X}");
                     res = pfnHashWrapped(Authority, 0, appId.Value, out hashValue);
-                } else
+                }
+                else
                 {
                     res = HashAppId(0, appId, out hashValue);
                 }
@@ -522,7 +523,7 @@ namespace Smx.Winter
             {
                 hashValue.ToString(); //$DEBUG
             }
-            
+
             Trace.WriteLine($"ours: {ourHash:X}");
 
             if (ourHash != hashValue)

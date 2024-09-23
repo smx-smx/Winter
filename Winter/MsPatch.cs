@@ -61,8 +61,8 @@ namespace Smx.Winter
             DELTA_OUTPUT lpTarget;
             unsafe
             {
-                fixed(byte* pInput = input)
-                fixed(byte* pPatch = patch)
+                fixed (byte* pInput = input)
+                fixed (byte* pPatch = patch)
                 {
                     dictIn.Anonymous.lpcStart = pInput;
                     patchIn.Anonymous.lpcStart = pPatch;
@@ -70,7 +70,8 @@ namespace Smx.Winter
                     if (DEBUG)
                     {
                         res = pfnTrap(DELTA_FLAG_NONE, dictIn, patchIn, out lpTarget);
-                    } else
+                    }
+                    else
                     {
                         res = PInvoke.ApplyDeltaB(DELTA_FLAG_NONE, dictIn, patchIn, out lpTarget);
                     }
@@ -82,7 +83,8 @@ namespace Smx.Winter
             }
 
             var output = new byte[(int)lpTarget.uSize];
-            unsafe {
+            unsafe
+            {
                 var targetPtr = new nint(lpTarget.lpStart);
                 Marshal.Copy(targetPtr, output, 0, output.Length);
                 PInvoke.DeltaFree(lpTarget.lpStart);

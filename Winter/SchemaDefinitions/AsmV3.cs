@@ -86,7 +86,7 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         [XmlAttribute(AttributeName = "offlineInstall")]
         public string OfflineInstall { get; set; }
     }
-    
+
     [XmlRoot(ElementName = "detectNone", Namespace = "urn:schemas-microsoft-com:asm.v3")]
     public class DetectNone
     {
@@ -2499,8 +2499,8 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public AssemblyIdentity AssemblyIdentity { get; set; }
         [XmlAttribute(AttributeName = "supportInformation")]
         public string SupportInformation { get; set; }
-        [XmlElement(ElementName = "package", Namespace="urn:schemas-microsoft-com:asm.v3")]
-		public Package Package { get; set; }
+        [XmlElement(ElementName = "package", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Package Package { get; set; }
         [XmlElement(ElementName = "deployment", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public Deployment Deployment { get; set; }
         [XmlElement(ElementName = "dependency", Namespace = "urn:schemas-microsoft-com:asm.v3")]

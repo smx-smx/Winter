@@ -17,7 +17,7 @@ namespace Smx.Winter.Cbs
             Guid.Parse("696AC247-4E85-42E8-B0D2-FEC2475C76AD");
         private static readonly Guid LogProvider_CbsTelemetry =
             Guid.Parse("5FC48AED-2EB8-4CD4-9C87-54700C4B7B26");
-        private static readonly Guid LogProvider_CbsSetup = 
+        private static readonly Guid LogProvider_CbsSetup =
             Guid.Parse("BD12F3B8-FC40-4A61-A307-B7A013A069C1");
 
         private delegate void pfnOutputDebugStringW([MarshalAs(UnmanagedType.LPWStr)] string lpOutputString);
@@ -26,30 +26,36 @@ namespace Smx.Winter.Cbs
         private TraceEventSession _trace;
         private Task _eventProcessor;
         private HookEngine _hooks;
-        
-        private void InitializeTrace(){
+
+        private void InitializeTrace()
+        {
             _trace.EnableProvider(LogProvider_TrustedInstaller, TraceEventLevel.Verbose, 0);
             _trace.EnableProvider(LogProvider_Wcp, TraceEventLevel.Verbose, 0);
             _trace.EnableProvider(LogProvider_CbsTelemetry, TraceEventLevel.Verbose, 0);
             _trace.EnableProvider(LogProvider_CbsSetup, TraceEventLevel.Verbose, 0);
-            _trace.Source.Dynamic.All += delegate(TraceEvent data){
+            _trace.Source.Dynamic.All += delegate (TraceEvent data)
+            {
                 Console.WriteLine($"[EV] {data.EventName}");
             };
-            _trace.Source.UnhandledEvents += delegate(TraceEvent data){
+            _trace.Source.UnhandledEvents += delegate (TraceEvent data)
+            {
                 Console.WriteLine($"[EV] {data.EventName}");
             };
         }
 
-        public TraceCollector(){
+        public TraceCollector()
+        {
             _hooks = new HookEngine();
             _trace = new TraceEventSession("Winter");
 
             InitializeTrace();
             _eventProcessor = Task.Run(_trace.Source.Process);
-            _hooks.CreateHook("kernel32.dll", "OutputDebugStringA", new pfnOutputDebugStringA(str => {
+            _hooks.CreateHook("kernel32.dll", "OutputDebugStringA", new pfnOutputDebugStringA(str =>
+            {
                 Console.WriteLine($"[DBG]: {str}");
             }));
-            _hooks.CreateHook("kernel32.dll", "OutputDebugStringW", new pfnOutputDebugStringW(str =>  {
+            _hooks.CreateHook("kernel32.dll", "OutputDebugStringW", new pfnOutputDebugStringW(str =>
+            {
                 Console.WriteLine($"[DBG]: {str}");
             }));
             _hooks.EnableHooks();

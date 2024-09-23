@@ -24,7 +24,7 @@ namespace Smx.Winter
 
             public override string ToString()
             {
-                if(Buffer == 0 || Length < 1)
+                if (Buffer == 0 || Length < 1)
                 {
                     return "";
                 }

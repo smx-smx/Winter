@@ -33,15 +33,17 @@ public class DevServer
     {
         var projDir = GetProjectDirectory();
 
-        var proc = Process.Start(new ProcessStartInfo() {
+        var proc = Process.Start(new ProcessStartInfo()
+        {
             WorkingDirectory = Path.Combine(projDir, ProgramDefaults.DevUserInterfaceDirectory),
             UseShellExecute = false,
             FileName = "cmd",
             Arguments = "/C gen.bat"
         });
-        if(proc == null) throw new InvalidOperationException();
+        if (proc == null) throw new InvalidOperationException();
         await proc.WaitForExitAsync();
-        if(proc.ExitCode != 0){
+        if (proc.ExitCode != 0)
+        {
             throw new InvalidOperationException("gen command failed");
         }
         proc.Dispose();

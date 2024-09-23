@@ -30,7 +30,7 @@
 
     public class NativeCbs : IDisposable
     {
-        public NativeServicingStackShim StackShim {  get; private set; }
+        public NativeServicingStackShim StackShim { get; private set; }
 
         public void Dispose()
         {

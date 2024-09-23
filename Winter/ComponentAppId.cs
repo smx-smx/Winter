@@ -160,9 +160,9 @@ namespace Smx.Winter
             NameHashFlags flags = (0
                 | (string.IsNullOrEmpty(Name) ? 0
                     : NameHashFlags.Name)
-                | ((string.IsNullOrEmpty(Culture) || Culture == CULTURE_NEUTRAL) ? 0 
+                | ((string.IsNullOrEmpty(Culture) || Culture == CULTURE_NEUTRAL) ? 0
                     : NameHashFlags.Culture)
-                | (string.IsNullOrEmpty(Type) ? 0 
+                | (string.IsNullOrEmpty(Type) ? 0
                     : NameHashFlags.Type)
                 | (string.IsNullOrEmpty(PublicKeyToken) ? 0
                     : NameHashFlags.PublicKeyToken)
@@ -246,7 +246,7 @@ namespace Smx.Winter
             appendProp(PROP_PUBLICKEY, PublicKeyToken);
             appendProp(PROP_PROCESSOR, ProcessorArchitecture);
             appendProp(PROP_VERSIONSCOPE, VersionScope);
-            
+
             return sb.ToString();
         }
 
@@ -265,7 +265,7 @@ namespace Smx.Winter
 
             if (maxLength > 0 && str.Length > maxLength)
             {
-                var mid = (maxLength / 2)-1;
+                var mid = (maxLength / 2) - 1;
                 var right_start = str.Length - mid;
 
                 return new StringBuilder()
@@ -285,7 +285,7 @@ namespace Smx.Winter
 
             var hash = GetHash(GetNameFlags()).ToString("x16");
             var culture = Culture == CULTURE_NEUTRAL
-                ? "none" 
+                ? "none"
                 : Culture ?? "";
 
             var sb = new StringBuilder(ProcessorArchitecture ?? "");

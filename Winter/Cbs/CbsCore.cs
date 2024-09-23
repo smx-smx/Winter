@@ -40,13 +40,16 @@ namespace Smx.Winter.Cbs
         private readonly pfnCbsCoreFinalize _cbsCoreFinalize;
         private readonly pfnCbsCoreSetCustomLogging _cbsCoreSetCustomLogging;
 
-        private void CbsLogMessage(int tag, string msg){
+        private void CbsLogMessage(int tag, string msg)
+        {
             Console.WriteLine($"[CBS,0x{tag:X}] {msg}");
         }
 
-        public CbsCore(string dllPath){
+        public CbsCore(string dllPath)
+        {
             var handle = PInvoke.LoadLibrary(dllPath);
-            if(handle == null){
+            if (handle == null)
+            {
                 throw new InvalidOperationException("failed to load CbsCore");
             }
             _handle = handle;
@@ -56,28 +59,32 @@ namespace Smx.Winter.Cbs
             _cbsCoreSetCustomLogging = PInvoke.GetProcAddress(handle, "CbsCoreSetCustomLogging").CreateDelegate<pfnCbsCoreSetCustomLogging>();
         }
 
-        public ICbsSession Initialize(){
+        public ICbsSession Initialize()
+        {
             _cbsCoreSetCustomLogging(CbsLogMessage);
 
-            if(!PInvoke.CoGetMalloc(1, out var iMalloc).Succeeded){
+            if (!PInvoke.CoGetMalloc(1, out var iMalloc).Succeeded)
+            {
                 throw new InvalidOperationException("CoGetMalloc failed");
             }
             var hr = _cbsCoreInitialize(
                 iMalloc,
                 lockProc: (_) => 0,
-                unlockProc: () => {},
-                instCreatedProc: () => {},
-                instDestroyedProc: () => {},
-                reqShutdownNowProc: () => {},
-                reqShutdownProcessingProc: () => {}, 
+                unlockProc: () => { },
+                instCreatedProc: () => { },
+                instDestroyedProc: () => { },
+                reqShutdownNowProc: () => { },
+                reqShutdownProcessingProc: () => { },
                 out var classFactory
             );
-            if(hr != 0){
+            if (hr != 0)
+            {
                 throw new InvalidOperationException("CbsInitialize failed");
             }
 
             classFactory.CreateInstance(null, typeof(ICbsSession).GUID, out var session);
-            if(session == null || !(session is ICbsSession sess)){
+            if (session == null || !(session is ICbsSession sess))
+            {
                 throw new InvalidOperationException("CreateInstance failed");
             }
             return sess;

@@ -159,7 +159,7 @@ public class ElevationService
     {
         var commandLineBuf = new char[commandLine.Length + 1];
         commandLine.CopyTo(commandLineBuf);
-        
+
         var commandLineSpan = commandLineBuf.AsSpan();
 
         using var tiToken = ImpersonateTrustedInstaller();

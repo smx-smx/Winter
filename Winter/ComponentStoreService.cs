@@ -51,7 +51,7 @@ namespace Smx.Winter
              **/
         }
     }
-    
+
     public class VersionedIndex : IDisposable
     {
         private readonly ManagedRegistryKey hkey;
@@ -76,7 +76,7 @@ namespace Smx.Winter
         private void PrintHashList(string hashList)
         {
             var chunks = hashList.Split(['#']);
-            foreach(var c in chunks)
+            foreach (var c in chunks)
             {
                 var parts = c.Split(['!']);
                 if (parts.Length < 2) continue;
@@ -96,7 +96,7 @@ namespace Smx.Winter
         {
 
             var manifestData = File.ReadAllBytes(manifestPath).AsSpan();
-            if(BinaryPrimitives.ReadUInt32BigEndian(manifestData) != DCM_MAGIC)
+            if (BinaryPrimitives.ReadUInt32BigEndian(manifestData) != DCM_MAGIC)
             {
                 throw new InvalidDataException();
             }
@@ -163,7 +163,7 @@ namespace Smx.Winter
             get
             {
                 using var hkey = ManagedRegistryKey.Open(Registry.KEY_CATALOGS);
-                foreach(var k in hkey.KeyNames)
+                foreach (var k in hkey.KeyNames)
                 {
                     var catalog = Catalog.FromRegistryKey(hkey.OpenChildKey(k));
                     yield return new CatalogNode(catalog);
@@ -192,7 +192,7 @@ namespace Smx.Winter
                 var asmReader = new AssemblyReader(wcpAcc.ServicingStack);
 
                 using var hkey = ManagedRegistryKey.Open(Registry.KEY_PACKAGES);
-                foreach(var k in hkey.KeyNames)
+                foreach (var k in hkey.KeyNames)
                 {
                     var path = Path.Combine(windows.SystemRoot, "servicing", "Packages", $"{k}.mum");
                     if (!File.Exists(path)) continue;

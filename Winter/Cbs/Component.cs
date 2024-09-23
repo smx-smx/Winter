@@ -34,7 +34,7 @@ namespace Smx.Winter.Cbs
         }
     }
 
-    public class Component 
+    public class Component
     {
         public string Identity { get; set; }
         public ICollection<string> Catalogs { get; set; }

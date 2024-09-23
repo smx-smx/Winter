@@ -45,7 +45,8 @@ namespace Smx.Winter
             {
                 using var key = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\COMPONENTS");
                 return true;
-            } catch (Win32Exception ex)
+            }
+            catch (Win32Exception ex)
             {
                 var err = (WIN32_ERROR)ex.NativeErrorCode;
                 if (err != WIN32_ERROR.ERROR_FILE_NOT_FOUND)

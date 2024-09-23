@@ -11,7 +11,8 @@ namespace Smx.Winter.MsDelta
     {
         private MFile patch;
 
-        public PatchReader(MFile patch) {
+        public PatchReader(MFile patch)
+        {
             this.patch = patch;
         }
 
@@ -19,11 +20,11 @@ namespace Smx.Winter.MsDelta
         {
             var sr = new SpanStream(patch);
             var magic = sr.ReadString(4, Encoding.ASCII);
-            if(magic == "DCM\x01")
+            if (magic == "DCM\x01")
             {
                 magic = sr.ReadString(4, Encoding.ASCII);
             }
-            if(magic != "PA30")
+            if (magic != "PA30")
             {
                 throw new NotSupportedException();
             }
