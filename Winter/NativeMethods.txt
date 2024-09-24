@@ -106,3 +106,5 @@ CoCreateInstance
 
 OutputDebugString
 RevertToSelf
+CreateProcessAsUser
+GetProcessId

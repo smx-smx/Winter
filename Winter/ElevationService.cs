@@ -18,6 +18,7 @@ using Windows.Win32.System.Threading;
 using Windows.Win32.System.StationsAndDesktops;
 using Smx.SharpIO.Memory;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Smx.Winter;
 
@@ -58,6 +59,59 @@ public class ElevationService
         return hToken;
     }
 
+    public static Process RunAsProcessUser(SafeFileHandle hProc, string cmdLine)
+    {
+        using var hSystemToken = OpenProcessToken(hProc, (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED);
+
+        var tokenAttributes = new SECURITY_ATTRIBUTES
+        {
+            bInheritHandle = false,
+            nLength = (uint)Marshal.SizeOf<SECURITY_ATTRIBUTES>(),
+            lpSecurityDescriptor = null
+        };
+
+        using var hDupToken = DuplicateTokenEx(
+            hSystemToken,
+            (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED,
+            tokenAttributes,
+            SECURITY_IMPERSONATION_LEVEL.SecurityImpersonation,
+            TOKEN_TYPE.TokenPrimary
+        );
+        if (hDupToken == null)
+        {
+            throw new Win32Exception();
+        }
+
+        var si = new STARTUPINFOW
+        {
+            cb = (uint)Unsafe.SizeOf<STARTUPINFOW>(),
+        };
+
+        var cmdlineChars = cmdLine.ToArray().AsSpan();
+        PROCESS_INFORMATION pi;
+        unsafe
+        {
+            if (!PInvoke.CreateProcessAsUser(
+                hDupToken,
+                null,
+                ref cmdlineChars,
+                null, null, true,
+                0, null, null, si, out pi
+            ))
+            {
+                throw new Win32Exception();
+            }
+        }
+        try
+        {
+            return Process.GetProcessById((int)pi.dwProcessId);
+        } finally
+        {
+            PInvoke.CloseHandle(pi.hThread);
+            PInvoke.CloseHandle(pi.hProcess);
+        }
+    }
+
     public static SafeFileHandle ImpersonateProcess(SafeFileHandle hProc)
     {
         using var hSystemToken = OpenProcessToken(hProc, (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED);
@@ -85,6 +139,8 @@ public class ElevationService
         {
             throw new Win32Exception();
         }
+
+
 
         return hDupToken;
     }
@@ -155,12 +211,15 @@ public class ElevationService
         return Marshal.PtrToStringUni(buf.Address);
     }
 
-    public void RunAsTrustedInstaller(string commandLine)
+    public Process RunAsTrustedInstaller(string[] args)
     {
-        var commandLineBuf = new char[commandLine.Length + 1];
-        commandLine.CopyTo(commandLineBuf);
+        if (args.Length < 1)
+        {
+            throw new ArgumentException();
+        }
 
-        var commandLineSpan = commandLineBuf.AsSpan();
+        var cmdLine = string.Join(' ', args.Select(arg => $"\"{arg}\"")) + "\0";
+        var cmdLineSpan = cmdLine.ToArray().AsSpan();
 
         using var tiToken = ImpersonateTrustedInstaller();
 
@@ -170,19 +229,31 @@ public class ElevationService
         Marshal.Copy(Encoding.Unicode.GetBytes(desktop), 0, lpDesktop.Address, (int)lpDesktop.Size);
 
         var si = new STARTUPINFOW();
+        PROCESS_INFORMATION pi;
         unsafe
         {
             si.lpDesktop = new PWSTR((char*)lpDesktop.Address.ToPointer());
-            PInvoke.CreateProcessWithToken(
+            if (!PInvoke.CreateProcessWithToken(
                 tiToken,
                 CREATE_PROCESS_LOGON_FLAGS.LOGON_WITH_PROFILE,
-                null,
-                ref commandLineSpan,
+                args[0],
+                ref cmdLineSpan,
                 PROCESS_CREATION_FLAGS.CREATE_UNICODE_ENVIRONMENT,
                 null,
-                null,
-                si, out var pi
-            );
+                Environment.CurrentDirectory,
+                si, out pi
+            ))
+            {
+                throw new Win32Exception();
+            }
+        }
+        try
+        {
+            return Process.GetProcessById((int)pi.dwProcessId);
+        } finally
+        {
+            PInvoke.CloseHandle(pi.hThread);
+            PInvoke.CloseHandle(pi.hProcess);
         }
     }
 

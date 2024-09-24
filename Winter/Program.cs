@@ -116,8 +116,7 @@ public class Program
             if (parse)
             {
                 var asm = asmReader.ReadToObject(stream);
-            }
-            else
+            } else
             {
                 var manifestData = asmReader.ReadToString(stream);
                 var outPath = Path.Combine(basePath, Path.GetFileName(manifest));
@@ -258,8 +257,7 @@ public class Program
                     if (inOutSel)
                     {
                         inputs.Add(File.ReadAllBytes(arg));
-                    }
-                    else
+                    } else
                     {
                         outputFiles.Add(arg);
                     }
@@ -326,7 +324,7 @@ public class Program
         switch (args[0])
         {
             case "cmd":
-                p.elevator.RunAsTrustedInstaller("cmd.exe");
+                p.elevator.RunAsTrustedInstaller(["cmd.exe"]);
                 break;
             case "test-all":
                 p.TestAllManifests(true);

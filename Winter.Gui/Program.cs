@@ -8,12 +8,15 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using Photino.Blazor;
 using Photino.NET;
 using PhotinoNET;
 using PhotinoNET.Server;
+using Radzen;
 using Smx.Winter.Gui.Services;
 using Smx.Winter.Gui.WebControllers;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Windows.Win32;
 
 namespace Smx.Winter.Gui;
 
@@ -76,7 +79,7 @@ class Program
 
     private const string TRUSTED_INSTALLER_SID = "S-1–5–80–956008885–3418522649–1831038044–1853292631–2271478464";
 
-    private static void SetEnv_TrustedInstaller()
+    private static void SetEnv_TrustedInstaller(string[] args)
     {
         var winDir = Environment.GetEnvironmentVariable("WinDir");
         if (winDir == null) throw new InvalidOperationException();
@@ -107,14 +110,24 @@ class Program
         var identity = WindowsIdentity.GetCurrent();
         Console.WriteLine($"User: {identity.Name}");
         Console.WriteLine($"SID: {identity.User?.Value}");
-        if (identity.User == null || identity.User.Value != TRUSTED_INSTALLER_SID)
+        if (identity.User == null || !identity.IsSystem)
         {
             var thisProc = Process.GetCurrentProcess();
             if (thisProc == null) throw new InvalidOperationException();
             var mainMod = thisProc.MainModule;
             if (mainMod == null) throw new InvalidOperationException();
 
-            new ElevationService().ImpersonateTrustedInstaller();
+            var self = Process.GetCurrentProcess()?.MainModule?.FileName;
+            if (self == null) throw new InvalidOperationException();
+            var argv = new List<string>
+            {
+                self
+            };
+            argv.AddRange(args);
+            Thread.Sleep(1000);
+            var proc = new ElevationService().RunAsTrustedInstaller(argv.ToArray());
+            proc.WaitForExit();
+            Environment.Exit(0);
         }
         Console.WriteLine("Running as TrustedInstaller");
     }
@@ -122,112 +135,43 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        string windowTitle;
-        var useDevServer = false;
-        var isDebug = false;
-        var devServer = new DevServer();
-        var baseUrl = string.Empty;
-
-#if DEBUG
-        // mark a flag, that we are currently in debug mode.
-        isDebug = true;
+#if false
+        if (WindowsIdentity.GetCurrent().IsSystem)
+        {
+            if (!Debugger.IsAttached)
+            {
+                if (Debugger.Launch())
+                {
+                    while (!Debugger.IsAttached) Thread.Sleep(200);
+                }
+            }
+        }
 #endif
+
+        SetEnv_TrustedInstaller(args);
 
         var cts = new CancellationTokenSource();
 
+        var builder = PhotinoBlazorAppBuilder.CreateDefault(args);
+        builder.Services.AddLogging();
+        builder.RootComponents.Add<App>("app");
 
-        if (isDebug && UseDevServerIfDebug)
+        builder.Services.AddRadzenComponents();
+        builder.Services.AddRadzenQueryStringThemeService();
+        var app = builder.Build();
+
+        app.MainWindow
+            .SetIconFile("favicon.ico")
+            .SetTitle("Winter");
+
+        AppDomain.CurrentDomain.UnhandledException += (sender, error) =>
         {
-            // if we are in debug mode, and the user wants to start the dev server, save a flag
-            useDevServer = true;
-        }
-
-        if (useDevServer)
-        {
-            windowTitle = "My Application (Debug)";
-        }
-        else
-        {
-            windowTitle = "My Application (Release)";
-        }
-
-        SetEnv_TrustedInstaller();
-
-        if (!useDevServer)
-        {
-            // in release mode, we will need to create static file server, so that we can serve the static file different then index.html
-            PhotinoServer
-                .CreateStaticFileServer(args, out baseUrl)
-                .RunAsync();
-        }
-
-        var window = new PhotinoWindow()
-            .SetTitle(windowTitle)
-            .SetUseOsDefaultSize(false)
-            .SetSize(new Size(600, 400))
-            .Center()
-            .SetTopMost(true)
-            .SetIconFile("wwwroot/favicon.ico")
-            .SetResizable(true);
-
-
-        var aspnetTask = new Task(async () =>
-        {
-            WebApplication? webapp = default;
-            try
-            {
-                webapp = CreateApiServer(window, args);
-                await webapp.RunAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("ApiServer stopped");
-            }
-        }, cts.Token);
-        aspnetTask.Start();
-
-        var shutdown = () =>
-        {
-            Console.WriteLine("Closing");
-            cts.Cancel();
-
-            if (useDevServer)
-            {
-                // if the dev server was used, make sure to terminate it correctly, so 
-                // that the used ports etc are freed
-                devServer.Stop();
-            }
-
-            aspnetTask.Wait();
+            app.MainWindow.ShowMessage("Fatal exception", error.ExceptionObject.ToString());
         };
 
-        var handler = new PhotinoMessageHandler(window);
+        app.Run();
 
-        if (useDevServer)
-        {
-            new Task(async () =>
-            {
-                try
-                {
-                    await devServer.Start();
-                }
-                catch (OperationCanceledException)
-                {
-                    Console.WriteLine("DevServer stopped");
-                }
-            }, cts.Token).Start();
-
-            // wait until we were able to read the dev-server url from the stdout of the npm run
-            // so that we know were Photino should navigate.
-            devServer.WaitUntilReady();
-            window.Load(devServer.GetUrl());
-        }
-        else
-        {
-            window.Load(baseUrl + "/index.html");
-        }
-
-        window.WaitForClose(); // Starts the application event loop
-        shutdown();
+        Console.WriteLine("Closing");
+        cts.Cancel();
     }
 }

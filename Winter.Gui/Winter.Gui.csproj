@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,12 +9,19 @@
     <RootNamespace>Smx.Winter.Gui</RootNamespace>
     <AssemblyName>Smx.Winter.Gui</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="wwwroot\**" />
     <None Update="wwwroot\**">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="favicon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
@@ -23,10 +30,11 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="CliWrap" Version="3.6.6" />
     <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="8.0.8" />
+    <PackageReference Include="Photino.Blazor" Version="3.1.9" />
     <PackageReference Include="Photino.NET" Version="3.1.17" />
     <PackageReference Include="Photino.NET.Server" Version="1.2.1" />
+    <PackageReference Include="Radzen.Blazor" Version="5.2.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
     <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.7.3" />
   </ItemGroup>
