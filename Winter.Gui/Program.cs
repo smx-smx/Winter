@@ -10,8 +10,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using Photino.Blazor;
 using Photino.NET;
-using PhotinoNET;
-using PhotinoNET.Server;
 using Radzen;
 using Smx.Winter.Gui.Services;
 using Smx.Winter.Gui.WebControllers;

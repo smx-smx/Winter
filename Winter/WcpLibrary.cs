@@ -228,7 +228,7 @@ namespace Smx.Winter
                 0, PInvoke.RESOURCE_ENUM_LN, 0) || firstLanguage == null) throw new InvalidOperationException();
 
             var hResourceInfo = PInvoke.FindResourceEx(wcpHModule, resourceType, resourceName, firstLanguage.Value);
-            if (hResourceInfo.Value == 0) throw new InvalidOperationException();
+            if (hResourceInfo.IsNull) throw new InvalidOperationException();
 
             var dictSize = PInvoke.SizeofResource(wcpHModule, hResourceInfo);
             var hResorce = PInvoke.LoadResource(wcpHModule, hResourceInfo);
@@ -477,8 +477,7 @@ namespace Smx.Winter
                     var trapAddr = Marshal.GetFunctionPointerForDelegate(pfnHashWrapped);
                     Console.WriteLine($"BT AT {trapAddr:X}");
                     res = pfnHashWrapped(Authority, 0, appId.Value, out hashValue);
-                }
-                else
+                } else
                 {
                     res = HashAppId(0, appId, out hashValue);
                 }

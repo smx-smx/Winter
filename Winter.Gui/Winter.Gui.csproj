@@ -30,13 +30,13 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="8.0.8" />
-    <PackageReference Include="Photino.Blazor" Version="3.1.9" />
-    <PackageReference Include="Photino.NET" Version="3.1.17" />
-    <PackageReference Include="Photino.NET.Server" Version="1.2.1" />
-    <PackageReference Include="Radzen.Blazor" Version="5.2.2" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.7.3" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="9.0.3" />
+    <PackageReference Include="Photino.Blazor" Version="4.0.13" />
+    <PackageReference Include="Photino.NET" Version="4.0.16" />
+    <PackageReference Include="Photino.NET.Server" Version="4.0.12" />
+    <PackageReference Include="Radzen.Blazor" Version="6.2.7" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="7.3.1" />
   </ItemGroup>
   
   <ItemGroup>

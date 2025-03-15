@@ -14,6 +14,7 @@ using Windows.Win32.Foundation;
 using Windows.Win32.System.Memory;
 using System.Runtime.CompilerServices;
 using Smx.SharpIO.Memory;
+using Smx.SharpIO.Extensions;
 
 namespace Smx.Winter;
 
@@ -71,8 +72,8 @@ public class Util
             throw new InvalidOperationException();
         }
         using var buf = MemoryHGlobal.Alloc((nint)(sizeof(char) * cchName));
-        var pBuf = buf.ToPWSTR();
-        using var hFile = PInvoke.FindFirstFileName(path, 0, ref cchName, pBuf);
+        var pBuf = buf.Memory.Cast<byte, char>();
+        using var hFile = PInvoke.FindFirstFileName(path, 0, ref cchName, pBuf.Span);
         if (hFile.IsInvalid) throw new InvalidOperationException();
 
         bool more_links = true;
@@ -82,7 +83,7 @@ public class Util
 
             for (int i = 0; i < 2 && more_links; i++)
             {
-                if (!PInvoke.FindNextFileName(hFile, ref cchName, pBuf))
+                if (!PInvoke.FindNextFileName(hFile, ref cchName, pBuf.Span))
                 {
                     switch (Marshal.GetLastWin32Error())
                     {
@@ -95,8 +96,7 @@ public class Util
                             more_links = false;
                             break;
                     }
-                }
-                else break;
+                } else break;
             }
         }
     }
