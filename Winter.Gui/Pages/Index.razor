@@ -1,35 +1,50 @@
 ﻿@page "/"
 @using Photino.NET
+@using Smx.Winter.Cbs.Native
 @using Smx.Winter.Gui.Controllers
+@using Smx.Winter.Gui.Models
+@using Smx.Winter.Cbs.Enumerators
 
 <h1>Hello, world!</h1>
 
 Welcome to your new app.
 
 <SurveyPrompt Title="How is Blazor working for you?" />
-<RadzenButton Click="StartCbsSession">Start CBS Session</RadzenButton>
-<RadzenLabel>@currentDir</RadzenLabel>
-<RadzenProgressBarCircular Visible="@loading"></RadzenProgressBarCircular>
-<p style="color: red">@error</p>
+<div>
+    <RadzenButton Click="StartCbsSession">Start CBS Session</RadzenButton>
+    <RadzenCheckBox TValue="bool"
+        Name="use_system_drive" @bind-Value="@_useSystemDrive" />
+    <RadzenLabel Text="Use System Drive" Component="use_system_drive" />
+</div>
+<RadzenLabel>@_currentDir</RadzenLabel>
+<RadzenProgressBarCircular Visible="@_loading"></RadzenProgressBarCircular>
+<p style="color: red">@_error</p>
 
 <RadzenStack
-    Orientation="Orientation.Vertical"
-    AlignItems="AlignItems.Start"
-    Visible="@(session != null)"
+Orientation="Orientation.Vertical"
+AlignItems="AlignItems.Start"
+Visible="@(_session != null)"
 >
     <RadzenButton Click="GetPackages">Get Components</RadzenButton>
     <RadzenLabel Text="Package Filter" Component="PackageFilter" />
     <RadzenTextBox Name="PackageFilter"
-                   oninput="@((ChangeEventArgs e) => searchFilter = e.Value?.ToString() ?? string.Empty)" />
+    oninput="@((ChangeEventArgs e) => _searchFilter = e.Value?.ToString() ?? string.Empty)" />
 </RadzenStack>
 
 <RadzenDataList
-    AllowVirtualization="false"
-    AllowPaging="true"
-    Data="@(packages.Where(itm => itm.Contains(searchFilter, StringComparison.InvariantCultureIgnoreCase)))"
->
+AllowVirtualization="false"
+AllowPaging="true"
+Data="@(_packages.Where(pkg => pkg.StringId.Contains(_searchFilter, StringComparison.InvariantCultureIgnoreCase)))">
     <Template Context="pkg">
-        <RadzenText>@pkg</RadzenText>
+        <RadzenPanel>
+            <HeaderTemplate>
+                <RadzenText TextStyle="TextStyle.H6" class="rz-display-flex rz-align-items-center rz-m-0">
+                    <RadzenIcon Icon="account_box" class="rz-me-1" /><b>@pkg.StringId</b>
+                </RadzenText>
+            </HeaderTemplate>
+            <ChildContent>
+            </ChildContent>
+        </RadzenPanel>
     </Template>
 </RadzenDataList>
 
@@ -37,48 +52,54 @@ Welcome to your new app.
 @implements IDisposable
 
 @code {
-    private string searchFilter = string.Empty;
-    private string currentDir = string.Empty;
-    private WinterSession? session = null;
-    private bool loading = false;
-    private string error = string.Empty;
-    private IList<string> packages = new List<string>();
+    private string _searchFilter = string.Empty;
+    private string _currentDir = string.Empty;
+    private WinterSession? _session = null;
+    private bool _loading = false;
+    private string _error = string.Empty;
+    private bool _useSystemDrive = false;
+
+    private IList<CbsPackageViewModel> _packages = new List<CbsPackageViewModel>();
+    private IList<string> _sources = new List<string>();
 
     public void Dispose()
     {
-        session?.Dispose();
+        _session?.Dispose();
     }
 
     private void GetPackages()
     {
-        if (session == null) return;
-        packages = session.GetPackages().ToList();
+        if (_session == null) return;
+        _packages = _session.GetPackages().Select(pkg => new CbsPackageViewModel(pkg)).ToList();
     }
 
     private void StartCbsSession()
     {
-        var winDir = window.ShowOpenFolder("Choose Windows Directory").FirstOrDefault();
+        var winDir = _useSystemDrive
+            ? Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.System))!.FullName
+            : window.ShowOpenFolder("Choose Windows Directory").FirstOrDefault();
+
         if (winDir == null) return;
         var bootDrive = Path.GetPathRoot(winDir);
         if (bootDrive == null) return;
 
-        currentDir = winDir;
-        loading = true;
-        error = string.Empty;
+        _currentDir = winDir;
+        _loading = true;
+        _error = string.Empty;
 
-        session?.Dispose();
+        _session?.Dispose();
         try {
-            session = new WinterSession(new Models.StartCbsSessionCommand
+            _session = new WinterSession(new Models.StartCbsSessionCommand
             {
                 BootDrive = bootDrive,
                 WinDir = winDir
             });
         } catch (Exception ex)
         {
-            error = ex.ToString();
+            _error = ex.ToString();
         } finally
         {
-            loading = false;
+            _loading = false;
         }
     }
 }

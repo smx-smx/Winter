@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Smx.Winter.Cbs;
+using Smx.Winter.Cbs.Enumerators;
 using Smx.Winter.Cbs.Native;
 using Smx.Winter.Gui.Models;
 
@@ -23,33 +24,34 @@ public class WinterSession : IDisposable
 
     private static ICbsSession Initialize(StartCbsSessionCommand para)
     {
-        const bool useOfflineServicingStack = false;
+        const bool useOfflineServicingStack = true;
         var nat = new NativeCbs(para.WinDir);
         var shim = nat.StackShim.SssBindServicingStack(useOfflineServicingStack ? para.WinDir : null);
         var cbsCorePath = shim.GetCbsCorePath();
         Console.WriteLine($"CbsCore: {cbsCorePath}");
         var core = new CbsCore(cbsCorePath);
         var session = core.Initialize();
+
+        var currentWinDir = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.System))!.FullName;
+        var isOnline = string.Equals(currentWinDir, para.WinDir, StringComparison.InvariantCultureIgnoreCase);
         session.Initialize(_CbsSessionOption.CbsSessionOptionNone,
-            "Winter", para.BootDrive, para.WinDir);
+            "Winter",
+            isOnline ? null : para.BootDrive,
+            isOnline ? null : para.WinDir);
         return session;
     }
 
-    public IEnumerable<string> GetPackages()
+    public IEnumerable<string> GetPackageIds()
     {
         _session.EnumeratePackages(0x70, out var list);
-        while (true)
-        {
-            list.Next(1, out var item, out var fetched);
-            if (fetched == 0)
-            {
-                yield break;
-            }
-            else
-            {
-                yield return item.GetStringId();
-            }
-        }
+        return new CbsIdentityEnumerable(list).Select(pkg => pkg.GetStringId());
+    }
+
+    public IEnumerable<ICbsPackage> GetPackages()
+    {
+        _session.EnumeratePackages(0x70, out var list);
+        // warning: opening packages require a compatible version of the servicing stack
+        return new CbsIdentityEnumerable(list).Select(pkg => _session.OpenPackage(0, pkg, null!));
     }
 
     public void Dispose()

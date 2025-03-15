@@ -20,6 +20,7 @@ using Windows.Win32.System.Services;
 using Smx.Winter.Cbs.Native;
 using Smx.Winter.Cbs;
 using Windows.Win32.System.Com;
+using Smx.Winter.Cbs.Enumerators;
 
 namespace Smx.Winter;
 
@@ -127,7 +128,7 @@ public class Program
 
     private delegate void EnumPackages(uint a, out IEnumCbsIdentity b);
 
-    private void TestCbsOffline(string bootDrive, string winDir, bool useOfflineServicingStack)
+    private void TestCbsSession(string bootDrive, string winDir, bool useOfflineServicingStack)
     {
         var nat = new NativeCbs(winDir);
         var shim = nat.StackShim.SssBindServicingStack(useOfflineServicingStack ? winDir : null);
@@ -135,9 +136,14 @@ public class Program
         Console.WriteLine($"CbsCore: {cbsCorePath}");
         var core = new CbsCore(cbsCorePath);
         var session = core.Initialize();
+
+        var currentWinDir = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.System))!.FullName;
+        var isOnline = string.Equals(currentWinDir, winDir, StringComparison.InvariantCultureIgnoreCase);
+
         session.Initialize(_CbsSessionOption.CbsSessionOptionNone,
             "Winter",
-            bootDrive, winDir);
+            isOnline ? null : bootDrive,
+            isOnline ? null : winDir);
         session.EnumeratePackages(0x70, out var list);
         session.Finalize(out var requiredAction);
     }
@@ -168,7 +174,7 @@ public class Program
 
     public void TestCbsNative()
     {
-        TestCbsOffline(@"W:", @"W:\Windows", useOfflineServicingStack: false);
+        TestCbsSession(@"C:", @"C:\Windows", useOfflineServicingStack: false);
     }
 
     public void TestCBS()
