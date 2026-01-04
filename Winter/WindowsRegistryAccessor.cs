@@ -94,23 +94,30 @@ public class WindowsRegistryAccessor : IDisposable
         return ManagedRegistryKey.Open(mountPath);
     }
 
-    public void Dispose()
+    private static void CloseHive(ManagedRegistryKey? hive)
     {
+        if (hive == null) return;
+
         using var hKey = new SafeRegistryHandle((nint)RegistryHive.LocalMachine, true);
 
-        if (_systemHive != null)
+        var hiveName = hive.Name;
+        hive.Dispose();
+        WIN32_ERROR err;
+        if((err=PInvoke.RegUnLoadKey(hKey, hiveName)) != WIN32_ERROR.NO_ERROR)
         {
-            PInvoke.RegUnLoadKey(hKey, _systemHive.Name);
+            throw new Win32Exception();
         }
-        if(_softwareHive != null)
-        {
-            PInvoke.RegUnLoadKey(hKey, _softwareHive.Name);
-        }
-        if(_componentsHive != null)
-        {
-            PInvoke.RegUnLoadKey(hKey, _componentsHive.Name);
-        }
+    }
 
-        _systemHive?.Dispose();
+    public void Dispose()
+    {
+        using var hKey = new SafeRegistryHandle((nint)RegistryHive.LocalMachine, true);       
+
+        if (!_windows.IsOnline)
+        {
+            CloseHive(_systemHive);
+            CloseHive(_softwareHive);
+            CloseHive(_componentsHive);
+        }
     }
 }

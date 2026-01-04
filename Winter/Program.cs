@@ -21,6 +21,7 @@ using Smx.Winter.Cbs.Native;
 using Smx.Winter.Cbs;
 using Windows.Win32.System.Com;
 using Smx.Winter.Cbs.Enumerators;
+using Microsoft.Extensions.Hosting;
 
 namespace Smx.Winter;
 
@@ -74,10 +75,6 @@ public class Program
         this.elevator = elevator;
         this.store = store;
         _registryAccessor = registryAccessor;
-    }
-
-    public void Initialize()
-    {
     }
 
     private void TestSAM()
@@ -348,13 +345,16 @@ public class Program
             }
         }
 
+        var hostBuilder = Host.CreateApplicationBuilder();
+        WinterFacade.ConfigureServices(hostBuilder.Services, opts);
+        var host = hostBuilder.Build();
 
+        AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
+        {
+            host.Dispose();
+        };
 
-        var winter = new WinterFacade(options:opts);
-        winter.Initialize();
-
-        var p = winter.Services.GetRequiredService<Program>();
-        p.Initialize();
+        var p = host.Services.GetRequiredService<Program>();
 
         switch (mode)
         {
@@ -383,7 +383,7 @@ public class Program
                 break;
             case "read-asm":
                 {
-                    var wcpAcc = winter.Services.GetRequiredService<WcpLibraryAccessor>();
+                    var wcpAcc = host.Services.GetRequiredService<WcpLibraryAccessor>();
 
                     ArgumentNullException.ThrowIfNull(arg1);
 

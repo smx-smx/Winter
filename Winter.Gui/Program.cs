@@ -41,7 +41,7 @@ class Program
 
         builder.Services.AddSingleton<CbsSessionsRepository>();
 
-        WinterFacade.BuildServices(builder.Services);
+        WinterFacade.ConfigureServices(builder.Services);
 
         const string apiCorsPolicy = "ApiCorsPolicy";
 
@@ -58,6 +58,9 @@ class Program
 
         builder.Services.AddSingleton<PhotinoWindow>(mainWindow);
 
+        var facade = new WinterFacade(builder);
+        facade.Initialize();
+
         var app = builder.Build();
 
         if (app.Environment.IsDevelopment())
@@ -65,9 +68,6 @@ class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
-
-        var facade = new WinterFacade(app.Services);
-        facade.Initialize();
 
         app.UseCors(apiCorsPolicy);
         app.MapControllers();

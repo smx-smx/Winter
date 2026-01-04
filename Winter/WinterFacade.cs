@@ -7,6 +7,7 @@
  */
 #endregion
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,10 +23,7 @@ namespace Smx.Winter
 
     public class WinterFacade
     {
-        public IServiceProvider Services { get; private set; }
-
-
-        public static void BuildServices(IServiceCollection sc, WinterFacadeOptions? options = default)
+        public static void ConfigureServices(IServiceCollection sc, WinterFacadeOptions? options = default)
         {
             sc.AddSingleton(new WindowsSystem(options?.SystemRoot));
             sc.AddSingleton<WindowsRegistryAccessor>();
@@ -34,34 +32,6 @@ namespace Smx.Winter
             sc.AddSingleton<ComponentFactory>();
             sc.AddSingleton<WcpLibraryAccessor>();
             sc.AddSingleton<Program>();
-        }
-
-        public WinterFacade(IServiceProvider? services = null, WinterFacadeOptions? options = default)
-        {
-            if (services == null)
-            {
-                var sc = new ServiceCollection();
-                BuildServices(sc, options);
-                Services = sc.BuildServiceProvider();
-            }
-            else
-            {
-                Services = services;
-            }
-        }
-
-        public IEnumerable<string> AllManifests
-        {
-            get
-            {
-                return Services.GetRequiredService<WindowsSystem>().AllManifests;
-            }
-        }
-
-        public void Initialize()
-        {
-            var p = Services.GetRequiredService<Program>();
-            p.Initialize();
         }
     }
 }

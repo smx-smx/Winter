@@ -74,26 +74,21 @@ public class ManagedRegistryKey : IDisposable
 
     private RegistryKeyInfo GetKeyNameLimits()
     {
-        uint cSubKeys = 0;
-        uint cbMaxSubkeyLength = 0;
-        uint cbMaxClassLength = 0;
-        uint cValues = 0;
-        uint cbMaxValueNameLength = 0;
-        uint cbMaxValueLength = 0;
+        uint cClass = 0;
 
-        unsafe
-        {
-            PInvoke.RegQueryInfoKey(
-                keyHandle, null, null,
-                &cSubKeys,
-                &cbMaxSubkeyLength,
-                &cbMaxClassLength,
-                &cValues,
-                &cbMaxValueNameLength,
-                &cbMaxValueLength,
-                null, null
-            );
-        }
+        PInvoke.RegQueryInfoKey(
+            keyHandle,
+            null,
+            ref cClass,
+            out var cSubKeys,
+            out var cbMaxSubkeyLength,
+            out var cbMaxClassLength,
+            out var cValues,
+            out var cbMaxValueNameLength,
+            out var cbMaxValueLength,
+            out var cbSecurityDescriptor,
+            out var lastWriteTime
+        );
 
         return new RegistryKeyInfo
         {
@@ -279,16 +274,11 @@ public class ManagedRegistryKey : IDisposable
 
     public ManagedRegistryKey CreateKey(string keyName, REG_SAM_FLAGS flags = REG_SAM_FLAGS.KEY_WOW64_64KEY)
     {
-        var keyDisp = new REG_CREATE_KEY_DISPOSITION();
-        WIN32_ERROR res;
         SafeRegistryHandle? resultKeyHandle;
-        unsafe
-        {
-            res = PInvoke.RegCreateKeyEx(
+        var res = PInvoke.RegCreateKeyEx(
                 keyHandle, keyName, null, REG_OPEN_CREATE_OPTIONS.REG_OPTION_BACKUP_RESTORE, flags, null,
-                out resultKeyHandle, &keyDisp);
-        }
-        if(res != WIN32_ERROR.NO_ERROR || resultKeyHandle == null)
+                out resultKeyHandle, out var keyDisp);
+        if (res != WIN32_ERROR.NO_ERROR || resultKeyHandle == null)
         {
             throw new Win32Exception((int)res, $"Cannot create key {Path}\\{keyName}"); 
         }
@@ -311,34 +301,25 @@ public class ManagedRegistryKey : IDisposable
         out REG_VALUE_TYPE type,
         REG_ROUTINE_FLAGS flags = REG_ROUTINE_FLAGS.RRF_RT_ANY)
     {
-        type = default;
         uint cbData = 0;
-        WIN32_ERROR res;
-        REG_VALUE_TYPE type_tmp;
-        unsafe
-        {
-            res = PInvoke.RegGetValue(
-                keyHandle, null, valueName,
-                flags, &type_tmp, null, &cbData);
 
-            type = type_tmp;
-        }
+        // populate cbData
+        var res = PInvoke.RegGetValue(
+                keyHandle, null, valueName,
+                flags, out type, null, ref cbData);
+
         if (res != WIN32_ERROR.ERROR_SUCCESS)
         {
             throw new Win32Exception((int)res, $"Failed to read value {valueName}");
         }
 
+        // allocate
         using var buf = MemoryHGlobal.Alloc((nint)cbData);
-        unsafe
-        {
-            res = PInvoke.RegGetValue(
+        res = PInvoke.RegGetValue(
                 keyHandle, null, valueName,
-                flags, &type_tmp, buf.Address.ToPointer(), &cbData
-            );
-        }
+                flags, out type, buf.Span, ref cbData);
 
         PWSTR pStr;
-
         switch (type)
         {
             case REG_VALUE_TYPE.REG_NONE:
@@ -399,8 +380,6 @@ public class ManagedRegistryKey : IDisposable
                     return buf.Span.ToArray();
                 }
         }
-
-        return null;
     }
 
 
@@ -561,13 +540,10 @@ public class ManagedRegistryKey : IDisposable
         var res = PInvoke.RegOpenKeyEx(hKey, subKey, 0, flags, out var keyHandle);
         if(res == WIN32_ERROR.ERROR_ACCESS_DENIED)
         {
-            unsafe
-            {
-                // $NOTE: for whatever reason, SYSTEM/TI can't use REG_OPTION_BACKUP_RESTORE
-                res = PInvoke.RegCreateKeyEx(hKey, subKey, null, 0
-                    | REG_OPEN_CREATE_OPTIONS.REG_OPTION_BACKUP_RESTORE
-                    | REG_OPEN_CREATE_OPTIONS.REG_OPTION_VOLATILE, flags, null, out keyHandle, null);
-            }
+            // NOTE: this won't work with SYSTEM/TI, which can't use REG_OPTION_BACKUP_RESTORE for some reason
+            res = PInvoke.RegCreateKeyEx(hKey, subKey, null, 0
+                | REG_OPEN_CREATE_OPTIONS.REG_OPTION_BACKUP_RESTORE
+                | REG_OPEN_CREATE_OPTIONS.REG_OPTION_VOLATILE, flags, null, out keyHandle, out var keyDisp);
         }
         return (res, keyHandle);
     }

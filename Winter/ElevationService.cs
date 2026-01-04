@@ -6,20 +6,21 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
+using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Win32.SafeHandles;
+using Smx.SharpIO.Memory;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Security;
 using Windows.Win32.System.Services;
-using Windows.Win32.System.Threading;
 using Windows.Win32.System.StationsAndDesktops;
-using Smx.SharpIO.Memory;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using Microsoft.Diagnostics.Tracing.Parsers;
+using Windows.Win32.System.Threading;
 
 namespace Smx.Winter;
 
@@ -198,21 +199,21 @@ public class ElevationService
         if (hWinsta == null) return null;
 
 
-        uint size;
-        unsafe
-        {
-            PInvoke.GetUserObjectInformation(
+        if(!PInvoke.GetUserObjectInformation(
                 hWinsta,
                 USER_OBJECT_INFORMATION_INDEX.UOI_NAME,
-                null, 0, &size);
+                null, out var sizeNeeded))
+        {
+            throw new Win32Exception();
         }
-        using var buf = MemoryHGlobal.Alloc(size);
-        unsafe
-        {
-            PInvoke.GetUserObjectInformation(
+
+        using var buf = MemoryHGlobal.Alloc(sizeNeeded);
+        if(!PInvoke.GetUserObjectInformation(
                 hWinsta,
                 USER_OBJECT_INFORMATION_INDEX.UOI_NAME,
-                buf.Address.ToPointer(), size, null);
+                buf.Span))
+        {
+            throw new Win32Exception();
         }
 
         return Marshal.PtrToStringUni(buf.Address);

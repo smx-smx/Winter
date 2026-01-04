@@ -144,18 +144,15 @@ public class Util
         }
 
         using var outBuf = MemoryHGlobal.Alloc(buf.Size);
-
         unsafe
         {
-            uint returnLength = (uint)outBuf.Size;
             if (!PInvoke.AdjustTokenPrivileges(
                 hToken, false,
-                (TOKEN_PRIVILEGES*)buf.Address.ToPointer(), (uint)buf.Size,
-                (TOKEN_PRIVILEGES*)outBuf.Address.ToPointer(), &returnLength))
+                (TOKEN_PRIVILEGES*)buf.Address.ToPointer(),
+                outBuf.Span, out var returnLength))
             {
                 throw new Win32Exception();
             }
-            returnLength.ToString();
         }
 
         var lastErr = Marshal.GetLastWin32Error();
