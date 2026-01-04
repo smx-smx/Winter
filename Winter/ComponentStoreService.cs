@@ -7,24 +7,10 @@
  */
 #endregion
 using Smx.Winter.Cbs;
-using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Dynamic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
 using Windows.Win32;
-using Windows.Win32.Foundation;
-using Windows.Win32.System.ApplicationInstallationAndServicing;
-using Windows.Win32.System.Memory;
-using static Smx.Winter.IRtlAppIdAuthority;
 
 namespace Smx.Winter
 {
@@ -56,9 +42,10 @@ namespace Smx.Winter
     {
         private readonly ManagedRegistryKey hkey;
 
-        public VersionedIndex(string version)
+
+        public VersionedIndex(string version, WindowsRegistryAccessor registryAccessor)
         {
-            hkey = ManagedRegistryKey.Open(@$"HKEY_LOCAL_MACHINE\COMPONENTS\DerivedData\VersionedIndex\{version}\ComponentFamilies");
+            hkey = registryAccessor.ComponentsHive.OpenChildKey($@"DerivedData\VersionedIndex\{version}\ComponentFamilies");
         }
 
         public void Dispose()
@@ -71,8 +58,10 @@ namespace Smx.Winter
         public IEnumerable<string> Components => hkey.KeyNames;
     }
 
-    public partial class ComponentStoreService(WindowsSystem windows)
+    public partial class ComponentStoreService(WindowsSystem windows, WindowsRegistryAccessor registryAccessor)
     {
+        private readonly RegistryComponentsAccessor _registryComponents = new RegistryComponentsAccessor(registryAccessor);
+
         private void PrintHashList(string hashList)
         {
             var chunks = hashList.Split(['#']);
@@ -149,11 +138,11 @@ namespace Smx.Winter
         {
             get
             {
-                using var hkey = ManagedRegistryKey.Open(Registry.KEY_COMPONENTS);
+                using var hkey = _registryComponents.Components;
                 foreach (var k in hkey.KeyNames)
                 {
                     var catalog = Cbs.Component.FromRegistryKey(hkey.OpenChildKey(k));
-                    yield return new ComponentNode(catalog);
+                    yield return new ComponentNode(catalog, _registryComponents);
                 }
             }
         }
@@ -162,11 +151,11 @@ namespace Smx.Winter
         {
             get
             {
-                using var hkey = ManagedRegistryKey.Open(Registry.KEY_CATALOGS);
+                using var hkey = _registryComponents.Catalogs;
                 foreach (var k in hkey.KeyNames)
                 {
                     var catalog = Catalog.FromRegistryKey(hkey.OpenChildKey(k));
-                    yield return new CatalogNode(catalog);
+                    yield return new CatalogNode(catalog, _registryComponents);
                 }
             }
         }
@@ -175,11 +164,11 @@ namespace Smx.Winter
         {
             get
             {
-                using var hkey = ManagedRegistryKey.Open(Registry.KEY_DEPLOYMENTS);
+                using var hkey = _registryComponents.Deployments;
                 foreach (var k in hkey.KeyNames)
                 {
                     var deployment = Deployment.FromRegistryKey(hkey.OpenChildKey(k));
-                    yield return new DeploymentNode(deployment);
+                    yield return new DeploymentNode(deployment, _registryComponents);
                 }
             }
         }
@@ -188,10 +177,10 @@ namespace Smx.Winter
         {
             get
             {
-                var wcpAcc = new WcpLibraryAccessor(windows);
+                var wcpAcc = new WcpLibraryAccessor(windows, registryAccessor);
                 var asmReader = new AssemblyReader(wcpAcc.ServicingStack);
 
-                using var hkey = ManagedRegistryKey.Open(Registry.KEY_PACKAGES);
+                using var hkey = _registryComponents.Packages;
                 foreach (var k in hkey.KeyNames)
                 {
                     var path = Path.Combine(windows.SystemRoot, "servicing", "Packages", $"{k}.mum");

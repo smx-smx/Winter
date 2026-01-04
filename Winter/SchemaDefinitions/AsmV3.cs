@@ -6,21 +6,22 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-using System.Xml.Serialization;
-
-using Smx.Winter.SchemaDefinitions.EventsNS;
-using Smx.Winter.SchemaDefinitions.RescacheV1;
-using Smx.Winter.SchemaDefinitions.MsmqV1;
-using Smx.Winter.SchemaDefinitions.SppInstallerNS;
+using Smx.Winter.AsmInternalV1;
 using Smx.Winter.SchemaDefinitions.AsmV1;
-using Smx.Winter.SchemaDefinitions.DefaultNS;
 using Smx.Winter.SchemaDefinitions.AsmV2;
-using Smx.Winter.SchemaDefinitions.WindowsSettingsNS;
 using Smx.Winter.SchemaDefinitions.CompatibilityV1;
 using Smx.Winter.SchemaDefinitions.CountersNS;
-using Smx.Winter.AsmInternalV1;
+using Smx.Winter.SchemaDefinitions.DefaultNS;
+using Smx.Winter.SchemaDefinitions.EventsNS;
+using Smx.Winter.SchemaDefinitions.MsmqV1;
+using Smx.Winter.SchemaDefinitions.RescacheV1;
+using Smx.Winter.SchemaDefinitions.SppInstallerNS;
+using Smx.Winter.SchemaDefinitions.WindowsSettingsNS;
 using Smx.Winter.SchemaDefinitions.XMLSchema;
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Xml.Serialization;
 
 namespace Smx.Winter.SchemaDefinitions.AsmV3
 {
@@ -203,6 +204,21 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
     {
         [XmlAttribute(AttributeName = "Name")]
         public string Name { get; set; }
+    }
+
+    [XmlRoot(ElementName = "Model", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Model
+    {
+        [XmlAttribute(AttributeName = "Id")]
+        public string Id { get; set; }
+    }
+
+
+    [XmlRoot(ElementName = "BestPractices", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class BestPractices
+    {
+        [XmlElement(ElementName = "Model", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Model Model { get; set; }
     }
 
     [XmlRoot(ElementName = "update", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -852,6 +868,20 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
     }
 
 
+    [XmlRoot(ElementName = "partition", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Partition
+    {
+        [XmlAttribute(AttributeName = "name")]
+        public string Name { get; set; }
+    }
+
+    [XmlRoot(ElementName = "applicablePartitions", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class ApplicablePartitions
+    {
+        [XmlElement(ElementName = "partition", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Partition Partition { get; set; }
+    }
+
     [XmlRoot(ElementName = "customInformation", Namespace = "urn:schemas-microsoft-com:asm.v3")]
     public class CustomInformation
     {
@@ -875,6 +905,8 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string PackageSupportedFeatures { get; set; }
         [XmlElement(ElementName = "phoneInformation")]
         public PhoneInformation PhoneInformation { get; set; }
+        [XmlElement(ElementName = "applicablePartitions", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public ApplicablePartitions ApplicablePartitions { get; set; }
         [XmlElement(ElementName = "EnableSelectabilityForEditions", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public EnableSelectabilityForEditions EnableSelectabilityForEditions { get; set; }
         [XmlAttribute(AttributeName = "LPTargetSPLevel")]
@@ -883,6 +915,16 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string LPType { get; set; }
         [XmlAttribute(AttributeName = "SoftBlockLink")]
         public string SoftBlockLink { get; set; }
+        [XmlElement(ElementName = "customInformation", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public CustomInformation CustomInformation2 { get; set; }
+        [XmlElement(ElementName = "selectable", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Selectable Selectable { get; set; }
+        [XmlElement(ElementName = "applicable", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Applicable Applicable { get; set; }
+        [XmlElement(ElementName = "SystemServices", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public SystemServices SystemServices { get; set; }
+        [XmlAttribute(AttributeName = "PSFXDeltaFormat")]
+        public string PSFXDeltaFormat { get; set; }
     }
 
 
@@ -942,7 +984,7 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
     public class SystemServices
     {
         [XmlElement(ElementName = "SystemService", Namespace = "urn:schemas-microsoft-com:asm.v3")]
-        public SystemService SystemService { get; set; }
+        public List<SystemService> SystemService { get; set; }
     }
 
 
@@ -973,6 +1015,15 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string Disposition { get; set; }
         [XmlElement(ElementName = "updateComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public UpdateComponent UpdateComponent { get; set; }
+    }
+
+    [XmlRoot(ElementName = "selection", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class Selection
+    {
+        [XmlAttribute(AttributeName = "name")]
+        public string Name { get; set; }
+        [XmlAttribute(AttributeName = "state")]
+        public string State { get; set; }
     }
 
     [XmlRoot(ElementName = "package", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -1020,6 +1071,8 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string Permanence { get; set; }
         [XmlAttribute(AttributeName = "psfName")]
         public string PsfName { get; set; }
+        [XmlElement(ElementName = "selection", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Selection Selection { get; set; }
     }
 
     [XmlRoot(ElementName = "filter", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -1364,6 +1417,8 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string Sqm { get; set; }
         [XmlAttribute(AttributeName = "xsi", Namespace = "http://www.w3.org/2000/xmlns/")]
         public string Xsi { get; set; }
+        [XmlAttribute(AttributeName = "RootClassMofDefinition")]
+        public string RootClassMofDefinition { get; set; }
     }
 
     [XmlRoot(ElementName = "deconstructionTool", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -2389,6 +2444,8 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
     [XmlRoot(ElementName = "OptionalCompanionFor", Namespace = "urn:schemas-microsoft-com:asm.v3")]
     public class OptionalCompanionFor
     {
+        [XmlAttribute(AttributeName = "Prerequisite")]
+        public string Prerequisite { get; set; }
         [XmlAttribute(AttributeName = "Type")]
         public string Type { get; set; }
         [XmlAttribute(AttributeName = "UniqueName")]
@@ -2399,7 +2456,7 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
     public class Relationships
     {
         [XmlElement(ElementName = "OptionalCompanionFor", Namespace = "urn:schemas-microsoft-com:asm.v3")]
-        public OptionalCompanionFor OptionalCompanionFor { get; set; }
+        public List<OptionalCompanionFor> OptionalCompanionFor { get; set; }
     }
 
     [XmlRoot(ElementName = "NonAncestorDependencies", Namespace = "urn:schemas-microsoft-com:asm.v3")]
@@ -2408,6 +2465,23 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         [XmlElement(ElementName = "ServerComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public List<ServerComponent> ServerComponent { get; set; }
     }
+
+    [XmlRoot(ElementName = "ConfigurationStatus", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class ConfigurationStatus
+    {
+        [XmlAttribute(AttributeName = "RegistryKeyPath")]
+        public string RegistryKeyPath { get; set; }
+        [XmlAttribute(AttributeName = "RegistryValueName")]
+        public string RegistryValueName { get; set; }
+    }
+
+    [XmlRoot(ElementName = "PostDeploymentInfo", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+    public class PostDeploymentInfo
+    {
+        [XmlAttribute(AttributeName = "PostInstallDescription")]
+        public string PostInstallDescription { get; set; }
+    }
+
 
     [XmlRoot(ElementName = "ServerComponent", Namespace = "urn:schemas-microsoft-com:asm.v3")]
     public class ServerComponent
@@ -2435,9 +2509,19 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         [XmlElement(ElementName = "NonAncestorDependencies", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public NonAncestorDependencies NonAncestorDependencies { get; set; }
         [XmlElement(ElementName = "Relationships", Namespace = "urn:schemas-microsoft-com:asm.v3")]
-        public Relationships Relationships { get; set; }
+        public List<Relationships> Relationships { get; set; }
         [XmlElement(ElementName = "SystemServices", Namespace = "urn:schemas-microsoft-com:asm.v3")]
         public SystemServices SystemServices { get; set; }
+        [XmlAttribute(AttributeName = "EventQuery")]
+        public string EventQuery { get; set; }
+        [XmlElement(ElementName = "BestPractices", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public BestPractices BestPractices { get; set; }
+        [XmlElement(ElementName = "Configuration", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public Configuration Configuration { get; set; }
+        [XmlElement(ElementName = "ConfigurationStatus", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public ConfigurationStatus ConfigurationStatus { get; set; }
+        [XmlElement(ElementName = "PostDeploymentInfo", Namespace = "urn:schemas-microsoft-com:asm.v3")]
+        public PostDeploymentInfo PostDeploymentInfo { get; set; }
     }
 
     [XmlRoot(ElementName = "capabilityIdentity", Namespace = "urn:schemas-microsoft-com:asm.v3")]

@@ -17,14 +17,16 @@ namespace Smx.Winter.Cbs
     public class DeploymentNode
     {
         private readonly Deployment deployment;
+        private readonly RegistryComponentsAccessor _registryAccessor;
 
-        public DeploymentNode(Deployment deployment)
+        public DeploymentNode(Deployment deployment, RegistryComponentsAccessor registryAccessor)
         {
             this.deployment = deployment;
+            _registryAccessor = registryAccessor;
         }
 
         public string AppId => deployment.AppId;
-        public CatalogNode? Catalog => deployment.CatalogThumbprint?.Let(Registry.OpenCatalog);
+        public CatalogNode? Catalog => deployment.CatalogThumbprint?.Let(_registryAccessor.OpenCatalog);
 
         public override string ToString()
         {

@@ -58,25 +58,26 @@ public static class DisposableMemoryExtensions
 
 public class Program
 {
-    private WindowsSystem windows;
-    private ElevationService elevator;
-    private ComponentStoreService store;
-
+    private readonly WindowsSystem windows;
+    private readonly ElevationService elevator;
+    private readonly ComponentStoreService store;
+    private readonly WindowsRegistryAccessor _registryAccessor;
 
     public Program(
         WindowsSystem windows,
         ElevationService elevator,
-        ComponentStoreService store
+        ComponentStoreService store,
+        WindowsRegistryAccessor registryAccessor
     )
     {
         this.windows = windows;
         this.elevator = elevator;
         this.store = store;
+        _registryAccessor = registryAccessor;
     }
 
     public void Initialize()
     {
-        elevator.ImpersonateTrustedInstaller();
     }
 
     private void TestSAM()
@@ -88,7 +89,7 @@ public class Program
 
     private AssemblyReader NewAssemblyReader()
     {
-        var acc = new WcpLibraryAccessor(windows);
+        var acc = new WcpLibraryAccessor(windows, _registryAccessor);
         return new AssemblyReader(acc.ServicingStack);
     }
 
@@ -192,7 +193,7 @@ public class Program
         return;
         */
 
-        var acc = new WcpLibraryAccessor(windows);
+        var acc = new WcpLibraryAccessor(windows, _registryAccessor);
         var servicingStack = acc.ServicingStack;
 
         foreach (var cmp in store.Components)
@@ -211,10 +212,10 @@ public class Program
         return;
     }
 
-    public void ParseAllUpdateModules()
+    public void ParseAllPackages()
     {
         var asmReader = NewAssemblyReader();
-        foreach (string item in windows.AllModules)
+        foreach (string item in windows.AllPackages)
         {
             using var stream = new FileStream(item, FileMode.Open, FileAccess.Read);
             var obj = asmReader.ReadToObject(stream);
@@ -378,7 +379,7 @@ public class Program
                 p.TestCBS();
                 break;
             case "test-mum":
-                p.ParseAllUpdateModules();
+                p.ParseAllPackages();
                 break;
             case "read-asm":
                 {

@@ -31,8 +31,7 @@ public class ElevationService
 {
     public ElevationService()
     {
-        Util.EnablePrivilege(PInvoke.SE_DEBUG_NAME);
-        Util.EnablePrivilege(PInvoke.SE_IMPERSONATE_NAME);
+        Util.EnablePrivileges([PInvoke.SE_DEBUG_NAME, PInvoke.SE_IMPERSONATE_NAME]);
     }
 
     public static SafeFileHandle DuplicateTokenEx(
@@ -113,10 +112,8 @@ public class ElevationService
         }
     }
 
-    public static SafeFileHandle ImpersonateProcess(SafeFileHandle hProc)
+    public static SafeFileHandle ImpersonateToken(SafeFileHandle hToken)
     {
-        using var hSystemToken = OpenProcessToken(hProc, (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED);
-
         var tokenAttributes = new SECURITY_ATTRIBUTES
         {
             bInheritHandle = false,
@@ -125,7 +122,7 @@ public class ElevationService
         };
 
         var hDupToken = DuplicateTokenEx(
-            hSystemToken,
+            hToken,
             (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED,
             tokenAttributes,
             SECURITY_IMPERSONATION_LEVEL.SecurityImpersonation,
@@ -140,9 +137,13 @@ public class ElevationService
         {
             throw new Win32Exception();
         }
+        return hDupToken;
+    }
 
-
-
+    public static SafeFileHandle ImpersonateProcess(SafeFileHandle hProc)
+    {
+        using var hSystemToken = OpenProcessToken(hProc, (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED);
+        var hDupToken = ImpersonateToken(hSystemToken);
         return hDupToken;
     }
 

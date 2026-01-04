@@ -18,6 +18,14 @@ namespace Smx.Winter
     {
         private readonly string _systemRoot;
 
+        public bool IsOnline
+        {
+            get
+            {
+                return new WindowsSystem().SystemRoot == _systemRoot;
+            }
+        }
+
         public WindowsSystem(string? systemRoot = null)
         {
             if(systemRoot == null)
@@ -36,16 +44,7 @@ namespace Smx.Winter
 
         public string SystemRoot => _systemRoot;
 
-        public IEnumerable<string> RegisteredModules
-        {
-            get
-            {
-                using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages");
-                return hkey.KeyNames;
-            }
-        }
-
-        public IEnumerable<string> AllModules
+        public IEnumerable<string> AllPackages
         {
             get
             {

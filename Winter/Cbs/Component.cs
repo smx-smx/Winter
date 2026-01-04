@@ -18,15 +18,17 @@ namespace Smx.Winter.Cbs
     public class ComponentNode
     {
         private readonly Component component;
+        private readonly RegistryComponentsAccessor _registryComponents;
 
-        public ComponentNode(Component component)
+        public ComponentNode(Component component, RegistryComponentsAccessor registryComponents)
         {
             this.component = component;
+            _registryComponents = registryComponents;
         }
 
         public string Identity => component.Identity;
 
-        public IEnumerable<CatalogNode> Catalogs => component.Catalogs.Select(Registry.OpenCatalog);
+        public IEnumerable<CatalogNode> Catalogs => component.Catalogs.Select(_registryComponents.OpenCatalog);
 
         public override string ToString()
         {
@@ -36,12 +38,8 @@ namespace Smx.Winter.Cbs
 
     public class Component
     {
-        public string Identity { get; set; }
-        public ICollection<string> Catalogs { get; set; }
-
-        public Component()
-        {
-        }
+        public required string Identity { get; set; }
+        public ICollection<string> Catalogs { get; set; } = new List<string>();
 
         internal static Component FromRegistryKey(ManagedRegistryKey key)
         {

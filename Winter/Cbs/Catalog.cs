@@ -17,19 +17,21 @@ namespace Smx.Winter.Cbs
 {
     public class CatalogNode
     {
-        private Catalog catalog;
+        private readonly Catalog catalog;
+        private readonly RegistryComponentsAccessor _componentsAccessor;
 
         public IEnumerable<DeploymentNode> Deployments
         {
             get
             {
-                return catalog.ComponentNames.Select(Registry.OpenDeployment);
+                return catalog.ComponentNames.Select(_componentsAccessor.OpenDeployment);
             }
         }
 
-        public CatalogNode(Catalog catalog)
+        public CatalogNode(Catalog catalog, RegistryComponentsAccessor componentsAccessor)
         {
             this.catalog = catalog;
+            _componentsAccessor = componentsAccessor;
         }
 
         public override string ToString()
@@ -41,11 +43,7 @@ namespace Smx.Winter.Cbs
     public class Catalog
     {
         public List<string> ComponentNames { get; set; } = new List<string>();
-        public string Thumbprint { get; set; }
-
-        public Catalog()
-        {
-        }
+        public required string Thumbprint { get; set; }
 
         public static Catalog FromRegistryKey(ManagedRegistryKey key)
         {

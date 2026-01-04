@@ -28,6 +28,7 @@ namespace Smx.Winter
         public static void BuildServices(IServiceCollection sc, WinterFacadeOptions? options = default)
         {
             sc.AddSingleton(new WindowsSystem(options?.SystemRoot));
+            sc.AddSingleton<WindowsRegistryAccessor>();
             sc.AddSingleton<ElevationService>();
             sc.AddSingleton<ComponentStoreService>();
             sc.AddSingleton<ComponentFactory>();
@@ -59,10 +60,6 @@ namespace Smx.Winter
 
         public void Initialize()
         {
-            // $FIXME: dependency injection
-            using var ldr = new ComponentStoreLoader(Services.GetRequiredService<WindowsSystem>());
-            ldr.LoadComponentStore(keepLoaded: true);
-
             var p = Services.GetRequiredService<Program>();
             p.Initialize();
         }

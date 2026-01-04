@@ -17,10 +17,12 @@ namespace Smx.Winter
     public class WcpLibraryAccessor
     {
         private readonly WindowsSystem windows;
+        private readonly WindowsRegistryAccessor _registryAccessor;
 
-        public WcpLibraryAccessor(WindowsSystem windows)
+        public WcpLibraryAccessor(WindowsSystem windows, WindowsRegistryAccessor registryAccessor)
         {
             this.windows = windows;
+            _registryAccessor = registryAccessor;
         }
 
         private WcpLibrary? _theLibrary = null;
@@ -45,13 +47,13 @@ namespace Smx.Winter
 
         private string GetCurrentWCPVersion()
         {
-            using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Version");
+            using var hkey = _registryAccessor.SoftwareHive.OpenChildKey(@"Microsoft\Windows\CurrentVersion\Component Based Servicing\Version");
             return hkey.ValueNames.First();
         }
 
         private string GetLastWCPVersionToAccessStore()
         {
-            using var hkey = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\COMPONENTS\ServicingStackVersions");
+            using var hkey = _registryAccessor.ComponentsHive.OpenChildKey(@"ServicingStackVersions");
             var formattedVersion = hkey.GetValue<string>("LastWCPVersionToAccessStore");
             var lastVer = formattedVersion.Split('(').First().TrimEnd();
             return lastVer;

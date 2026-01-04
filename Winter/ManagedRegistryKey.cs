@@ -572,6 +572,21 @@ public class ManagedRegistryKey : IDisposable
         return (res, keyHandle);
     }
 
+    public static bool Exists(string keyPath, REG_SAM_FLAGS flags = DEFAULT_FLAGS)
+    {
+        if (!TrySplitKeyPath(keyPath, out var hive, out var subKey))
+        {
+            throw new ArgumentException($"Invalid key path: \"{keyPath}\"");
+        }
+        var (err, handle) = OpenKey(new SafeRegistryHandle((nint)hive, true), subKey, flags);
+        if (handle.IsInvalid)
+        {
+            return false;
+        }
+        handle.Close();
+        return true;
+    }
+
     public static ManagedRegistryKey Open(string keyPath, REG_SAM_FLAGS flags = DEFAULT_FLAGS)
     {
         if (!TrySplitKeyPath(keyPath, out var hive, out var subKey))

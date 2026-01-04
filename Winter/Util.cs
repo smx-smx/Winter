@@ -16,6 +16,7 @@ using System.Runtime.CompilerServices;
 using Smx.SharpIO.Memory;
 using Smx.SharpIO.Extensions;
 using System.ComponentModel;
+using Smx.SharpIO;
 
 namespace Smx.Winter;
 
@@ -101,41 +102,71 @@ public class Util
             }
         }
     }
+    public static ulong Djb2Hash(string input)
+    {
+        ulong hash = 5381;
+        foreach (char c in input)
+        {
+            hash = ((hash << 5) + hash) + c;
+        }
+        return hash;
+    }
 
-    public static void EnablePrivilege(string privilegeName)
+    public static void EnablePrivileges(IEnumerable<string> privilegeNames)
     {
         using var hProc = PInvoke.GetCurrentProcess_SafeHandle();
         if (hProc == null) throw new InvalidOperationException();
-        using var hToken = OpenProcessToken(hProc, TOKEN_ACCESS_MASK.TOKEN_QUERY | TOKEN_ACCESS_MASK.TOKEN_ADJUST_PRIVILEGES);
+        using var hToken = OpenProcessToken(hProc, (TOKEN_ACCESS_MASK)PInvoke.MAXIMUM_ALLOWED);
         if (hToken == null) throw new InvalidOperationException();
 
-        if (!PInvoke.LookupPrivilegeValue(null, privilegeName, out var luid))
+        var luids = privilegeNames.Select(name =>
         {
-            throw new Win32Exception();
-        }
-
-        var tp = new TOKEN_PRIVILEGES
-        {
-            PrivilegeCount = 1,
-            Privileges = new VariableLengthInlineArray<LUID_AND_ATTRIBUTES>
-            {
-                e0 = new LUID_AND_ATTRIBUTES
-                {
-                    Luid = luid,
-                    Attributes = TOKEN_PRIVILEGES_ATTRIBUTES.SE_PRIVILEGE_ENABLED
-                }
-            }
-        };
-
-        unsafe
-        {
-            if (!PInvoke.AdjustTokenPrivileges(
-                hToken, false,
-                &tp, (uint)Marshal.SizeOf(tp),
-                null, null))
+            if (!PInvoke.LookupPrivilegeValue(null, name, out var luid))
             {
                 throw new Win32Exception();
             }
+            return KeyValuePair.Create(name, luid);
+        }).ToDictionary();
+
+        using var buf = MemoryHGlobal.Alloc(Marshal.SizeOf<uint>() + (Marshal.SizeOf<LUID_AND_ATTRIBUTES>() * luids.Count));
+        buf.Span.Cast<TOKEN_PRIVILEGES>()[0].PrivilegeCount = (uint)luids.Count;
+
+        var pLuids = buf.Span.Slice(Marshal.SizeOf<uint>()).Cast<LUID_AND_ATTRIBUTES>();
+
+        var iLuid = 0;
+        foreach(var luid in luids.Values)
+        {
+            pLuids[iLuid++] = new LUID_AND_ATTRIBUTES
+            {
+                Luid = luid,
+                Attributes = TOKEN_PRIVILEGES_ATTRIBUTES.SE_PRIVILEGE_ENABLED
+            };
         }
+
+        using var outBuf = MemoryHGlobal.Alloc(buf.Size);
+
+        unsafe
+        {
+            uint returnLength = (uint)outBuf.Size;
+            if (!PInvoke.AdjustTokenPrivileges(
+                hToken, false,
+                (TOKEN_PRIVILEGES*)buf.Address.ToPointer(), (uint)buf.Size,
+                (TOKEN_PRIVILEGES*)outBuf.Address.ToPointer(), &returnLength))
+            {
+                throw new Win32Exception();
+            }
+            returnLength.ToString();
+        }
+
+        var lastErr = Marshal.GetLastWin32Error();
+        if (lastErr == (int)WIN32_ERROR.ERROR_NOT_ALL_ASSIGNED)
+        {
+            throw new InvalidOperationException();
+        }
+    }
+
+    public static void EnablePrivilege(string privilegeName)
+    {
+        EnablePrivileges([privilegeName]);
     }
 }
