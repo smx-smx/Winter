@@ -15,14 +15,19 @@ using System.Threading.Tasks;
 
 namespace Smx.Winter
 {
+    public class WinterFacadeOptions
+    {
+        public string? SystemRoot { get; set; }
+    }
+
     public class WinterFacade
     {
         public IServiceProvider Services { get; private set; }
 
 
-        public static void BuildServices(IServiceCollection sc)
+        public static void BuildServices(IServiceCollection sc, WinterFacadeOptions? options = default)
         {
-            sc.AddSingleton<WindowsSystem>();
+            sc.AddSingleton(new WindowsSystem(options?.SystemRoot));
             sc.AddSingleton<ElevationService>();
             sc.AddSingleton<ComponentStoreService>();
             sc.AddSingleton<ComponentFactory>();
@@ -30,12 +35,12 @@ namespace Smx.Winter
             sc.AddSingleton<Program>();
         }
 
-        public WinterFacade(IServiceProvider? services = null)
+        public WinterFacade(IServiceProvider? services = null, WinterFacadeOptions? options = default)
         {
             if (services == null)
             {
                 var sc = new ServiceCollection();
-                BuildServices(sc);
+                BuildServices(sc, options);
                 Services = sc.BuildServiceProvider();
             }
             else

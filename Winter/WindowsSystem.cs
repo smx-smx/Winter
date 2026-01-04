@@ -16,10 +16,25 @@ namespace Smx.Winter
 {
     public class WindowsSystem
     {
-        public string SystemRoot
+        private readonly string _systemRoot;
+
+        public WindowsSystem(string? systemRoot = null)
         {
-            get => ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion").GetValue<string>("SystemRoot");
+            if(systemRoot == null)
+            {
+                var onlineSystemRoot = ManagedRegistryKey.Open(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion").GetValue<string>("SystemRoot");
+                if (onlineSystemRoot == null)
+                {
+                    throw new InvalidOperationException("Cannot get SystemRoot from registry");
+                }
+                _systemRoot = onlineSystemRoot;
+            } else
+            {
+                _systemRoot = systemRoot;
+            }
         }
+
+        public string SystemRoot => _systemRoot;
 
         public IEnumerable<string> RegisteredModules
         {

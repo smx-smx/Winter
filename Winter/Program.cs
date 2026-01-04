@@ -233,12 +233,10 @@ public class Program
         return true;
     }
 
-    public static void TestMsdeltaNative(IEnumerable<string> args)
+    public static void TestMsdeltaNative(IEnumerator<string> args)
     {
-        var it = args.GetEnumerator();
-
-        if (!TryTake(it, out var name)
-            || !TryTake(it, out var codeFile))
+        if (!TryTake(args, out var name)
+            || !TryTake(args, out var codeFile))
         {
             throw new InvalidEnumArgumentException();
         }
@@ -248,9 +246,9 @@ public class Program
 
         bool inOutSel = true;
 
-        while (it.MoveNext())
+        while (args.MoveNext())
         {
-            var arg = it.Current;
+            var arg = args.Current;
             switch (arg)
             {
                 case "-i":
@@ -295,18 +293,29 @@ public class Program
 
     public static void Main(string[] args)
     {
+        var it = ((IEnumerable<string>)args).GetEnumerator();
+        if(!TryTake(it, out var mode))
+        {
+            Environment.Exit(1);
+        }
+
         bool handled = true;
-        switch (args[0])
+        switch (mode)
         {
             case "msdelta-script":
-                TestMsdeltaNative(args.Skip(1));
+                TestMsdeltaNative(it);
                 break;
             case "xml-merge":
                 XmlMerger.ToolMain([@"S:\out", @"S:\merged.xml"]);
                 break;
             case "patch-read":
                 {
-                    using var patch = MFile.Open(args[1], FileMode.Open, FileAccess.Read, FileShare.Read);
+                    if(!TryTake(it, out var patchPath))
+                    {
+                        Environment.Exit(1);
+                    }
+
+                    using var patch = MFile.Open(patchPath, FileMode.Open, FileAccess.Read, FileShare.Read);
                     new PatchReader(patch).Read();
                     break;
                 }
@@ -320,14 +329,33 @@ public class Program
             Environment.Exit(0);
         }
 
+        var opts = new WinterFacadeOptions();
 
-        var winter = new WinterFacade();
+        string? arg1 = default;
+
+        if(TryTake(it, out arg1))
+        {
+            if(arg1 == "--sysroot")
+            {
+                if(!TryTake(it, out var sysroot))
+                {
+                    Environment.Exit(1);
+                }
+                opts.SystemRoot = sysroot;
+
+                TryTake(it, out arg1);
+            }
+        }
+
+
+
+        var winter = new WinterFacade(options:opts);
         winter.Initialize();
 
         var p = winter.Services.GetRequiredService<Program>();
         p.Initialize();
 
-        switch (args[0])
+        switch (mode)
         {
             case "cmd":
                 p.elevator.RunAsTrustedInstaller(["cmd.exe"]);
@@ -356,7 +384,9 @@ public class Program
                 {
                     var wcpAcc = winter.Services.GetRequiredService<WcpLibraryAccessor>();
 
-                    using var input = MFile.Open(args[1], FileMode.Open, FileAccess.Read, FileShare.Read);
+                    ArgumentNullException.ThrowIfNull(arg1);
+
+                    using var input = MFile.Open(arg1, FileMode.Open, FileAccess.Read, FileShare.Read);
                     using var stream = new SpanStream(input);
                     var decoded = new AssemblyReader(wcpAcc.ServicingStack).ReadToString(stream);
                     Console.WriteLine(decoded);
