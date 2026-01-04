@@ -32,6 +32,7 @@ PROCESS_ACCESS_RIGHTS
 PROCESS_CREATION_FLAGS
 SE_DEBUG_NAME
 SE_IMPERSONATE_NAME
+SE_SECURITY_NAME
 MAXIMUM_ALLOWED
 
 // load hive
@@ -41,7 +42,9 @@ SE_BACKUP_NAME
 // advapi32 
 RegRenameKey
 RegOpenKeyExW
+RegCreateKeyExW
 RegSetKeyValueW
+RegSetValueExW
 RegGetValueW
 RegCreateKeyExW
 RegEnumKeyExW
@@ -94,11 +97,13 @@ SymSetOptions
 SymInitialize
 SymLoadModuleEx
 SymFromName
+SymRegisterCallback64
 SYMOPT_DEFERRED_LOADS
 SYMOPT_DEBUG
 SYMBOL_INFO
 MAX_SYM_NAME
 SymCleanup
+CBA_DEBUG_INFO
 
 CoGetMalloc
 IClassFactory

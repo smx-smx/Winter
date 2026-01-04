@@ -6,14 +6,20 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
+using Microsoft.Diagnostics.Tracing.Parsers.ApplicationServer;
+using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftWindowsTCPIP;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using Smx.SharpIO;
 using Smx.SharpIO.Extensions;
 using Smx.SharpIO.Memory;
+using System;
+using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.Text;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Registry;
@@ -30,16 +36,26 @@ public struct RegistryKeyInfo
     public int MaxValueLength;
 }
 
+public struct RegistryValue
+{
+    public object Value;
+    public REG_VALUE_TYPE Type;
+}
+
+
 public class ManagedRegistryKey : IDisposable
 {
     private readonly SafeHandle keyHandle;
     public string Path { get; private set; }
     public string Name => System.IO.Path.GetFileName(Path);
 
+    public RegistryKeyInfo CachedInfo { get; private set; }
+
     private ManagedRegistryKey(SafeRegistryHandle handle, string fullPath)
     {
         this.keyHandle = handle;
         this.Path = fullPath;
+        this.CachedInfo = UpdateCachedInfo();
     }
 
 
@@ -51,9 +67,9 @@ public class ManagedRegistryKey : IDisposable
         }
     }
 
-    public ManagedRegistryKey OpenChildKey(string sub)
+    public ManagedRegistryKey OpenChildKey(string sub, REG_SAM_FLAGS flags = DEFAULT_FLAGS)
     {
-        return Open(System.IO.Path.Combine(Path, sub));
+        return Open($"{Path}\\{sub}", flags);
     }
 
     private RegistryKeyInfo GetKeyNameLimits()
@@ -115,8 +131,8 @@ public class ManagedRegistryKey : IDisposable
         {
             throw new InvalidOperationException();
         }
-        keyName = new string(pKeyName.AsSpan().Slice(0, (int)cchName));
-        keyClass = new string(pKeyClass.AsSpan().Slice(0, (int)cchClass));
+        keyName = pKeyName.ToString();
+        keyClass = pKeyClass.ToString();
         return res;
     }
 
@@ -141,18 +157,23 @@ public class ManagedRegistryKey : IDisposable
         }
         if (res != WIN32_ERROR.ERROR_SUCCESS)
         {
-            throw new Win32Exception((int)res);
+            throw new Win32Exception((int)res, "Failed to enumerate value");
         }
 
         valueName = new string(pValueName.AsSpan().Slice(0, (int)cchValueName));
         return res;
     }
 
-    public bool TryGetValue<T>(string valueName, out T value)
+    public bool TryGetValue<T>(string valueName, [MaybeNullWhen(false)] out T value)
     {
         try
         {
             value = GetValue<T>(valueName);
+            if (value == null)
+            {
+                return false;
+            }
+            return true;
         }
         catch (Win32Exception ex)
         {
@@ -160,12 +181,14 @@ public class ManagedRegistryKey : IDisposable
             if (ex.ErrorCode == (int)WIN32_ERROR.ERROR_OBJECT_NOT_FOUND)
             {
                 return false;
+            } else
+            {
+                throw;
             }
         }
-        return true;
     }
 
-    public T GetValue<T>(string valueName)
+    public T? GetValue<T>(string valueName)
     {
         var v = GetValue(valueName, out var type);
         var t = typeof(T);
@@ -177,7 +200,7 @@ public class ManagedRegistryKey : IDisposable
         {
             switch (type)
             {
-                case REG_VALUE_TYPE.REG_DWORD:
+                case REG_VALUE_TYPE.REG_DWORD_LITTLE_ENDIAN:
                 case REG_VALUE_TYPE.REG_DWORD_BIG_ENDIAN:
                     break;
                 default:
@@ -199,10 +222,91 @@ public class ManagedRegistryKey : IDisposable
                     throw new ArgumentException();
             }
         }
-        return (T)v;
+        return (T?)v;
     }
 
-    public object GetValue(
+    private byte[] GetValueBytes<T>(REG_VALUE_TYPE valueType, T value)
+    {
+        switch (valueType)
+        {
+            case REG_VALUE_TYPE.REG_NONE:
+            case REG_VALUE_TYPE.REG_BINARY:
+                if (value is not byte[] vb)
+                {
+                    throw new ArgumentException("not a byte array value");
+                }
+                return vb;
+            case REG_VALUE_TYPE.REG_DWORD_BIG_ENDIAN:
+            case REG_VALUE_TYPE.REG_DWORD_LITTLE_ENDIAN:
+                var isLittle = valueType == REG_VALUE_TYPE.REG_DWORD_LITTLE_ENDIAN;
+                uint vu = Convert.ToUInt32(value);
+                var dword = BitConverter.GetBytes(vu);
+                return isLittle
+                    ? dword
+                    : Enumerable.Reverse(dword).ToArray();
+
+            case REG_VALUE_TYPE.REG_QWORD_LITTLE_ENDIAN:
+                var vl = Convert.ToUInt64(value);
+                return BitConverter.GetBytes(vl);
+
+            case REG_VALUE_TYPE.REG_SZ:
+            case REG_VALUE_TYPE.REG_EXPAND_SZ:
+            case REG_VALUE_TYPE.REG_LINK:
+                if(value is not string vs)
+                {
+                    throw new ArgumentException("not a string");
+                }
+                return new UnicodeEncoding(false, false).GetBytes(vs);
+            case REG_VALUE_TYPE.REG_MULTI_SZ:
+                var ms = new MemoryStream();
+                var bw = new BinaryWriter(ms);
+                var strings = value as IEnumerable<string>;
+                if(strings == null)
+                {
+                    throw new ArgumentException("not a string enumerable");
+                }
+                var encoding = new UnicodeEncoding(false, false);
+                foreach(var str in strings)
+                {
+                    bw.Write(encoding.GetBytes(str));
+                    bw.Write((ushort)0);
+                }
+                return ms.ToArray();
+            default:
+                throw new NotImplementedException(Enum.GetName(valueType));
+        }
+    }
+
+    public ManagedRegistryKey CreateKey(string keyName, REG_SAM_FLAGS flags = REG_SAM_FLAGS.KEY_WOW64_64KEY)
+    {
+        var keyDisp = new REG_CREATE_KEY_DISPOSITION();
+        WIN32_ERROR res;
+        SafeRegistryHandle? resultKeyHandle;
+        unsafe
+        {
+            res = PInvoke.RegCreateKeyEx(
+                keyHandle, keyName, null, REG_OPEN_CREATE_OPTIONS.REG_OPTION_BACKUP_RESTORE, flags, null,
+                out resultKeyHandle, &keyDisp);
+        }
+        if(res != WIN32_ERROR.NO_ERROR || resultKeyHandle == null)
+        {
+            throw new Win32Exception((int)res, $"Cannot create key {Path}\\{keyName}"); 
+        }
+        UpdateCachedInfo();
+        return new ManagedRegistryKey(resultKeyHandle, $"{Path}\\{keyName}");
+    }
+
+    public void SetValue<T>(string valueName, REG_VALUE_TYPE valueType, T value)
+    {
+        var bytes = GetValueBytes(valueType, value);
+        var res = PInvoke.RegSetValueEx(keyHandle, valueName, valueType, bytes);
+        if(res != WIN32_ERROR.NO_ERROR)
+        {
+            throw new Win32Exception((int)res, $"Failed to write value {Path}\\{valueName}");
+        }
+    }
+
+    public object? GetValue(
         string valueName,
         out REG_VALUE_TYPE type,
         REG_ROUTINE_FLAGS flags = REG_ROUTINE_FLAGS.RRF_RT_ANY)
@@ -221,7 +325,7 @@ public class ManagedRegistryKey : IDisposable
         }
         if (res != WIN32_ERROR.ERROR_SUCCESS)
         {
-            throw new Win32Exception((int)res);
+            throw new Win32Exception((int)res, $"Failed to read value {valueName}");
         }
 
         using var buf = MemoryHGlobal.Alloc((nint)cbData);
@@ -240,23 +344,33 @@ public class ManagedRegistryKey : IDisposable
             case REG_VALUE_TYPE.REG_NONE:
             case REG_VALUE_TYPE.REG_BINARY:
                 return buf.Span.ToArray();
-            case REG_VALUE_TYPE.REG_DWORD:
-                return buf.Span.Cast<uint>()[0];
+            case REG_VALUE_TYPE.REG_DWORD_LITTLE_ENDIAN:
+            case REG_VALUE_TYPE.REG_DWORD_BIG_ENDIAN:
+                if (buf.Span.Length < sizeof(uint)) return null;
+                var isLittleDw = type == REG_VALUE_TYPE.REG_DWORD_LITTLE_ENDIAN;
+                return isLittleDw
+                    ? BinaryPrimitives.ReadUInt32LittleEndian(buf.Span)
+                    : BinaryPrimitives.ReadUInt32BigEndian(buf.Span);
             case REG_VALUE_TYPE.REG_QWORD:
-                return buf.Span.Cast<ulong>()[0];
+                if (buf.Span.Length < sizeof(ulong)) return null;
+                var isLittleQw = type == REG_VALUE_TYPE.REG_QWORD_LITTLE_ENDIAN;
+                return isLittleQw
+                    ? BinaryPrimitives.ReadUInt64LittleEndian(buf.Span)
+                    : BinaryPrimitives.ReadUInt64BigEndian(buf.Span);
             case REG_VALUE_TYPE.REG_MULTI_SZ:
                 List<string> stringArray = new List<string>();
-                int i = 0;
-                while (i < cbData)
+                int iCh = 0;
+                var nCh = cbData / sizeof(char);
+                while (iCh < nCh)
                 {
                     unsafe
                     {
-                        pStr = new PWSTR((char*)buf.Address.ToPointer() + i);
+                        pStr = new PWSTR((char*)buf.Address.ToPointer() + iCh);
                     }
                     var str = pStr.ToString();
-                    i += sizeof(char) * (str.Length + 1);
+                    iCh += (str.Length + 1);
 
-                    if (str.Length == 0 && i >= cbData) { }
+                    if (str.Length == 0 && iCh >= cbData) { }
                     else stringArray.Add(str);
                 }
                 return stringArray.ToArray();
@@ -268,21 +382,37 @@ public class ManagedRegistryKey : IDisposable
                     pStr = new PWSTR((char*)buf.Address.ToPointer());
                 }
                 return pStr.ToString();
+            /*
             case REG_VALUE_TYPE.REG_RESOURCE_LIST:
             case REG_VALUE_TYPE.REG_RESOURCE_REQUIREMENTS_LIST:
             case REG_VALUE_TYPE.REG_DWORD_BIG_ENDIAN:
             case REG_VALUE_TYPE.REG_FULL_RESOURCE_DESCRIPTOR:
                 break;
+            */
             default:
-                break;
+                if (Enum.IsDefined(type))
+                {
+                    throw new NotImplementedException("Type not implemented: " + Enum.GetName(type));
+                } else
+                {
+                    // SAM types and other binary data
+                    return buf.Span.ToArray();
+                }
         }
 
         return null;
     }
 
+
+    private RegistryKeyInfo UpdateCachedInfo()
+    {
+        CachedInfo = GetKeyNameLimits();
+        return CachedInfo;
+    }
+
     private IEnumerable<string> GetKeyNames()
     {
-        var info = GetKeyNameLimits();
+        var info = CachedInfo;
         for (uint i = 0; i < info.NumberOfSubKeys; i++)
         {
             var cchName = info.MaxSubkeyLength + 1;
@@ -311,7 +441,7 @@ public class ManagedRegistryKey : IDisposable
 
     private IEnumerable<string> GetValueNames()
     {
-        var info = GetKeyNameLimits();
+        var info = CachedInfo;
         for (uint i = 0; i < info.NumberOfValues; i++)
         {
             var cchValueName = info.MaxValueNameLength + 1;
@@ -343,6 +473,34 @@ public class ManagedRegistryKey : IDisposable
         get => GetValueNames();
     }
 
+    public IEnumerable<ManagedRegistryKey> ChildKeys
+    {
+        get
+        {
+            foreach(var k in KeyNames)
+            {
+                var child = OpenChildKey(k);
+                yield return child;
+            }
+        }
+    }
+
+    public IEnumerable<RegistryValue> Values
+    {
+        get
+        {
+            foreach(var k in ValueNames)
+            {
+                var v = GetValue(k, out var valueType);
+                yield return new RegistryValue
+                {
+                    Value = v,
+                    Type = valueType,
+                };
+            }
+        }
+    }
+
     private const string HKCR = "HKEY_CLASSES_ROOT";
     private const string HKLM = "HKEY_LOCAL_MACHINE";
     private const string HKCU = "HKEY_CURRENT_USER";
@@ -367,6 +525,18 @@ public class ManagedRegistryKey : IDisposable
         { "HKCC", HKCC }
     });
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <remarks>WRITE_DAC and WRITE_OWNER might not be available to SYSTEM</remarks>
+    private const REG_SAM_FLAGS DEFAULT_FLAGS = 0
+        | REG_SAM_FLAGS.KEY_QUERY_VALUE
+        | REG_SAM_FLAGS.KEY_ENUMERATE_SUB_KEYS
+        | REG_SAM_FLAGS.KEY_READ
+        | REG_SAM_FLAGS.KEY_WRITE // for SetValue
+        | REG_SAM_FLAGS.KEY_CREATE_SUB_KEY // for CreateKey
+        | REG_SAM_FLAGS.KEY_WOW64_64KEY;
+
     private static bool TrySplitKeyPath(string path, out RegistryHive hive, out string subKey)
     {
         hive = default;
@@ -386,23 +556,32 @@ public class ManagedRegistryKey : IDisposable
         return true;
     }
 
-    private static (WIN32_ERROR, SafeRegistryHandle) OpenKey(SafeHandle hKey, string subKey, REG_SAM_FLAGS extraFlags = REG_SAM_FLAGS.KEY_WOW64_64KEY)
+    private static (WIN32_ERROR, SafeRegistryHandle) OpenKey(SafeHandle hKey, string subKey, REG_SAM_FLAGS flags = DEFAULT_FLAGS)
     {
-        REG_SAM_FLAGS flags = REG_SAM_FLAGS.KEY_ALL_ACCESS | extraFlags;
         var res = PInvoke.RegOpenKeyEx(hKey, subKey, 0, flags, out var keyHandle);
+        if(res == WIN32_ERROR.ERROR_ACCESS_DENIED)
+        {
+            unsafe
+            {
+                // $NOTE: for whatever reason, SYSTEM/TI can't use REG_OPTION_BACKUP_RESTORE
+                res = PInvoke.RegCreateKeyEx(hKey, subKey, null, 0
+                    | REG_OPEN_CREATE_OPTIONS.REG_OPTION_BACKUP_RESTORE
+                    | REG_OPEN_CREATE_OPTIONS.REG_OPTION_VOLATILE, flags, null, out keyHandle, null);
+            }
+        }
         return (res, keyHandle);
     }
 
-    public static ManagedRegistryKey Open(string keyPath)
+    public static ManagedRegistryKey Open(string keyPath, REG_SAM_FLAGS flags = DEFAULT_FLAGS)
     {
         if (!TrySplitKeyPath(keyPath, out var hive, out var subKey))
         {
             throw new ArgumentException($"Invalid key path: \"{keyPath}\"");
         }
-        var (res, handle) = OpenKey(new SafeRegistryHandle((nint)hive, true), subKey);
+        var (err, handle) = OpenKey(new SafeRegistryHandle((nint)hive, true), subKey, flags);
         if (handle.IsInvalid)
         {
-            throw new Win32Exception((int)res);
+            throw new Win32Exception((int)err, $"Failed to open key {keyPath}");
         }
         return new ManagedRegistryKey(handle, keyPath);
     }

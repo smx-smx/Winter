@@ -2,10 +2,12 @@
 using Smx.SharpIO.Memory;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -796,13 +798,30 @@ namespace Smx.Winter.MsDelta
         private readonly long MAX_SYM_BUF;
         private readonly NativeApi api;
 
+        private bool SymbolRegisteredCallback(HANDLE hProcess, uint actionCode, nint callbackData, nint userContext)
+        {
+            if(actionCode == PInvoke.CBA_DEBUG_INFO)
+            {
+                var str = Marshal.PtrToStringAnsi(callbackData);
+                //Console.Write(str);
+            }
+            return false;
+        }
+
         private void LoadSymbols()
         {
             PInvoke.SymSetOptions(PInvoke.SYMOPT_DEFERRED_LOADS | PInvoke.SYMOPT_DEBUG);
             var currentProcess = PInvoke.GetCurrentProcess_SafeHandle();
             if (!PInvoke.SymInitialize(currentProcess, SYM_SEARCH_PATH, false))
             {
-                throw new Exception("SymInitialize() failed");
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "SymInitialize() failed");
+            }
+            if (!PInvoke.SymRegisterCallback64(currentProcess,
+                (hProcess, actionCode, callbackData, userContext) => SymbolRegisteredCallback(
+                    hProcess, actionCode, (nint)callbackData, (nint)userContext), 0)
+            )
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "SymRegisterCallback() failed");
             }
             if (PInvoke.SymLoadModuleEx(
                 currentProcess,
@@ -812,7 +831,7 @@ namespace Smx.Winter.MsDelta
                 0, null, 0
             ) == 0)
             {
-                throw new Exception("SymLoadModuleEx() failed");
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "SymLoadModuleEx() failed");
             }
         }
 

@@ -19,6 +19,7 @@ using Windows.Win32.System.StationsAndDesktops;
 using Smx.SharpIO.Memory;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.Diagnostics.Tracing.Parsers;
 
 namespace Smx.Winter;
 
@@ -146,7 +147,7 @@ public class ElevationService
     }
 
 
-    public static void RunAsToken<T>(SafeFileHandle hToken, Action action)
+    public static void RunAsToken<T>(SafeHandle hToken, Action action)
     {
         RunAsToken(hToken, () =>
         {
@@ -155,7 +156,7 @@ public class ElevationService
         });
     }
 
-    public static T RunAsToken<T>(SafeFileHandle hToken, Func<T> action)
+    public static T RunAsToken<T>(SafeHandle hToken, Func<T> action)
     {
         if (!PInvoke.ImpersonateLoggedOnUser(hToken))
         {
@@ -183,6 +184,11 @@ public class ElevationService
             throw new Win32Exception();
         }
         return res;
+    }
+
+    public void RestoreToken()
+    {
+        while (PInvoke.RevertToSelf()) ;
     }
 
     private string? GetCurrentWindowStation()
@@ -302,6 +308,16 @@ public class ElevationService
             | PROCESS_ACCESS_RIGHTS.PROCESS_DUP_HANDLE
             | PROCESS_ACCESS_RIGHTS.PROCESS_QUERY_INFORMATION,
             false, dwProcessId);
+    }
+
+    public SafeHandle GetCurrentToken()
+    {
+        using var currentProc = PInvoke.GetCurrentProcess_SafeHandle();
+        if(!PInvoke.OpenProcessToken(currentProc, TOKEN_ACCESS_MASK.TOKEN_QUERY,out var hToken))
+        {
+            throw new Win32Exception();
+        }
+        return hToken;
     }
 
     public SafeHandle ImpersonateSystem()

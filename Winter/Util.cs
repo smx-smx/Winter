@@ -15,6 +15,7 @@ using Windows.Win32.System.Memory;
 using System.Runtime.CompilerServices;
 using Smx.SharpIO.Memory;
 using Smx.SharpIO.Extensions;
+using System.ComponentModel;
 
 namespace Smx.Winter;
 
@@ -110,7 +111,7 @@ public class Util
 
         if (!PInvoke.LookupPrivilegeValue(null, privilegeName, out var luid))
         {
-            throw new InvalidOperationException();
+            throw new Win32Exception();
         }
 
         var tp = new TOKEN_PRIVILEGES
@@ -133,7 +134,7 @@ public class Util
                 &tp, (uint)Marshal.SizeOf(tp),
                 null, null))
             {
-                throw new InvalidOperationException();
+                throw new Win32Exception();
             }
         }
     }
