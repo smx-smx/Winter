@@ -36,13 +36,13 @@ namespace Smx.Winter
         }
 
 
-        public Component GetFromManifest(string manifestPath)
+        public Cbs.Component GetFromManifest(string manifestPath)
         {
             //componentStore.TraverseDeployments
             return null;
         }
 
-        public Component GetFromFile(string filePath)
+        public Cbs.Component GetFromFile(string filePath)
         {
             return null;
         }

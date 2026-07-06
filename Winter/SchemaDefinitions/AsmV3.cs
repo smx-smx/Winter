@@ -44,6 +44,15 @@ namespace Smx.Winter.SchemaDefinitions.AsmV3
         public string VersionScope { get; set; }
         [XmlAttribute(AttributeName = "type")]
         public string Type { get; set; }
+
+        public string GetFileName()
+        {
+            return string.Join('~', [
+                Name, PublicKeyToken, ProcessorArchitecture,
+                Language == "neutral" ? string.Empty : Language,
+                Version
+            ]);
+        }
     }
 
     [XmlRoot(ElementName = "deployment", Namespace = "urn:schemas-microsoft-com:asm.v3")]

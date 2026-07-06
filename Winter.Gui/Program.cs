@@ -58,8 +58,7 @@ class Program
 
         builder.Services.AddSingleton<PhotinoWindow>(mainWindow);
 
-        var facade = new WinterFacade(builder);
-        facade.Initialize();
+        var facade = new WinterFacade();
 
         var app = builder.Build();
 

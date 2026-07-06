@@ -9,6 +9,29 @@ using Windows.Win32.System.Com;
 
 namespace Smx.Winter.Cbs
 {
+    public enum CbsCoreState : int
+    {
+        // 0: unused
+        // 1: $TODO (hook)
+        // 2: unused
+        CbsCoreOnRebootRequiredHook = 3,
+        // 4: $TODO (hook)
+        CbsCoreOnRegisterWinlogonNotificationHook = 5,
+        CbsCoreOnUnregisterWinlogonNotificationHook = 6,
+        CbsCoreFinalize = 7,
+        CbsCoreUseOnlineMode = 8,
+        // 9: $TODO (hook)
+    }
+
+    [Flags]
+    public enum CbsEnumPackagesFlags : uint
+    {
+        InstalledPackages = 1 << 4,
+        SkipStorePackage = 1 << 6,
+        SkipIdentity = 1 << 7,
+        IncludeSuperseded = 1 << 9
+    }
+
     public class CbsCore : IDisposable
     {
         private delegate int pfnLockProc(int arg);
@@ -32,6 +55,8 @@ namespace Smx.Winter.Cbs
             out IClassFactory classFactory
         );
 
+        private delegate int pfnCbsCoreSetState(CbsCoreState state, long value);
+
         private delegate void vpfnCustomLogging(int tag, [MarshalAs(UnmanagedType.LPStr)] string msg);
         private delegate void pfnCbsCoreSetCustomLogging(vpfnCustomLogging? loggingFunction);
 
@@ -39,6 +64,7 @@ namespace Smx.Winter.Cbs
         private readonly pfnCbsCoreInitialize _cbsCoreInitialize;
         private readonly pfnCbsCoreFinalize _cbsCoreFinalize;
         private readonly pfnCbsCoreSetCustomLogging _cbsCoreSetCustomLogging;
+        private readonly pfnCbsCoreSetState _cbsCoreSetState;
 
         private void CbsLogMessage(int tag, string msg)
         {
@@ -57,10 +83,23 @@ namespace Smx.Winter.Cbs
             _cbsCoreInitialize = PInvoke.GetProcAddress(handle, "CbsCoreInitialize").CreateDelegate<pfnCbsCoreInitialize>();
             _cbsCoreFinalize = PInvoke.GetProcAddress(handle, "CbsCoreFinalize").CreateDelegate<pfnCbsCoreFinalize>();
             _cbsCoreSetCustomLogging = PInvoke.GetProcAddress(handle, "CbsCoreSetCustomLogging").CreateDelegate<pfnCbsCoreSetCustomLogging>();
+            _cbsCoreSetState = PInvoke.GetProcAddress(handle, "CbsCoreSetState").CreateDelegate<pfnCbsCoreSetState>();
         }
 
-        public ICbsSession Initialize()
+        public int SetState(CbsCoreState state, long value)
         {
+            return _cbsCoreSetState(state, value);
+        }
+
+        private IClassFactory? _classFactory;
+
+        private IClassFactory InitializeClassFactory()
+        {
+            if(_classFactory != null)
+            {
+                return _classFactory;
+            }
+
             _cbsCoreSetCustomLogging(CbsLogMessage);
 
             if (!PInvoke.CoGetMalloc(1, out var iMalloc).Succeeded)
@@ -81,7 +120,13 @@ namespace Smx.Winter.Cbs
             {
                 throw new InvalidOperationException("CbsInitialize failed");
             }
+            _classFactory = classFactory;
+            return classFactory;
+        }
 
+        public ICbsSession Initialize()
+        {
+            var classFactory = InitializeClassFactory();
             classFactory.CreateInstance(null, typeof(ICbsSession).GUID, out var session);
             if (session == null || !(session is ICbsSession sess))
             {

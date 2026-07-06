@@ -10,11 +10,25 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Smx.Winter
 {
-    public class WcpLibraryAccessor
+    public class ServicingStackVersion
+    {
+        public readonly string Version;
+        public readonly string? ProductName;
+
+        public ServicingStackVersion(string unparsed)
+        {
+            var firstSpace = unparsed.IndexOf(' ');
+            ProductName = firstSpace < 0 ? null : unparsed.Substring(firstSpace + 1);
+            Version = firstSpace < 0 ? unparsed : unparsed.Substring(0, firstSpace);
+        }
+    }
+
+    public class WcpLibraryAccessor : IDisposable
     {
         private readonly WindowsSystem windows;
         private readonly WindowsRegistryAccessor _registryAccessor;
@@ -51,12 +65,15 @@ namespace Smx.Winter
             return hkey.ValueNames.First();
         }
 
-        private string GetLastWCPVersionToAccessStore()
+        private ServicingStackVersion GetLastWCPVersionToAccessStore()
         {
             using var hkey = _registryAccessor.ComponentsHive.OpenChildKey(@"ServicingStackVersions");
             var formattedVersion = hkey.GetValue<string>("LastWCPVersionToAccessStore");
-            var lastVer = formattedVersion.Split('(').First().TrimEnd();
-            return lastVer;
+            if(formattedVersion == null)
+            {
+                throw new InvalidOperationException("Cannot get Lats WCP Version to access store");
+            }
+            return new ServicingStackVersion(formattedVersion);
         }
 
         private WcpLibrary LoadWcpLibrary()
@@ -69,11 +86,11 @@ namespace Smx.Winter
                 Culture = "neutral",
                 ProcessorArchitecture = "amd64",
                 PublicKeyToken = Constants.MICROSOFT_PUBKEY,
-                Version = wcpVer,
+                Version = wcpVer.Version,
                 VersionScope = "NonSxS"
             };
 
-            var sxsName = servicingStackAppID.GetSxSName();
+            var sxsName = servicingStackAppID.GetName(ComponentAppIdNameFormat.CbsLong);
             var servicingStackRoot = Path.Combine(windows.SystemRoot, "WinSxS", sxsName);
             var wcpPath = Path.Combine(servicingStackRoot, "wcp.dll");
 
@@ -90,6 +107,12 @@ namespace Smx.Winter
 
             return wcp;
 
+        }
+
+        public void Dispose()
+        {
+            _registryAccessor.Dispose();
+            _theLibrary?.Dispose();
         }
     }
 }

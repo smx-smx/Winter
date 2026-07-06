@@ -27,6 +27,15 @@ namespace Smx.Winter
         VersionScope = 1 << 8
     }
 
+    public enum ComponentAppIdNameFormat
+    {
+        CbsFull,
+        CbsLong,
+        CbsShort,
+        AppId,
+        Package
+    }
+
     public partial class ComponentAppId
     {
         public string? Name { get; set; }
@@ -89,6 +98,34 @@ namespace Smx.Winter
                 ProcessorArchitecture = p[2],
                 Culture = p[3],
                 Version = p[4]
+            };
+        }
+
+        public static ComponentAppId FromAssemblyIdentity(SchemaDefinitions.AsmV1.AssemblyIdentity asm)
+        {
+            return new ComponentAppId
+            {
+                Name = asm.Name,
+                Culture = asm.Language,
+                Version = asm.Version,
+                ProcessorArchitecture = asm.ProcessorArchitecture,
+                PublicKeyToken = asm.PublicKeyToken,
+                Type = asm.Type,
+                VersionScope = default                
+            };
+        }
+
+        public static ComponentAppId FromAssemblyIdentity(SchemaDefinitions.AsmV3.AssemblyIdentity asm)
+        {
+            return new ComponentAppId
+            {
+                Name = asm.Name,
+                Culture = asm.Language,
+                Version = asm.Version,
+                ProcessorArchitecture = asm.ProcessorArchitecture,
+                PublicKeyToken = asm.PublicKeyToken,
+                Type = asm.Type,
+                VersionScope = asm.VersionScope
             };
         }
 
@@ -227,6 +264,30 @@ namespace Smx.Winter
             return hash;
         }
 
+
+        private string GetPackageName()
+        {
+            var sb = new StringBuilder(Name ?? "");
+
+            var appendProp = (string? value) =>
+            {
+                var s = value ?? "";
+                sb.Append(PROPSEP_PACKAGE);
+                sb.Append(value);
+            };
+
+            var culture = Culture == CULTURE_NEUTRAL
+                ? string.Empty
+                : Culture ?? "";
+
+            appendProp(PublicKeyToken);
+            appendProp(ProcessorArchitecture);
+            appendProp(culture);
+            appendProp(Version);
+
+            return sb.ToString();
+        }
+
         public override string ToString()
         {
             const string sep = ", ";
@@ -241,11 +302,16 @@ namespace Smx.Winter
                     .Append(SEP_KEYVALUE)
                     .Append(value);
             };
+
+            var versionScopeStr = (VersionScope ?? "").Equals("NonSxS", StringComparison.InvariantCultureIgnoreCase)
+                ? "NonSxS"
+                : VersionScope;
+
             appendProp(PROP_CULTURE, Culture);
             appendProp(PROP_VERSION, Version);
             appendProp(PROP_PUBLICKEY, PublicKeyToken);
             appendProp(PROP_PROCESSOR, ProcessorArchitecture);
-            appendProp(PROP_VERSIONSCOPE, VersionScope);
+            appendProp(PROP_VERSIONSCOPE, versionScopeStr);
 
             return sb.ToString();
         }
@@ -277,8 +343,17 @@ namespace Smx.Winter
             return str;
         }
 
-        public string GetSxSName(bool compact = true)
+        public string GetName(ComponentAppIdNameFormat format)
         {
+            if(format == ComponentAppIdNameFormat.AppId)
+            {
+                return ToString();
+            }
+            if(format == ComponentAppIdNameFormat.Package)
+            {
+                return GetPackageName();
+            }
+
             /** GenerateKeyFormIntoBuffer_LHFormat **/
 
             Console.WriteLine(Name);
@@ -288,16 +363,44 @@ namespace Smx.Winter
                 ? "none"
                 : Culture ?? "";
 
-            var sb = new StringBuilder(ProcessorArchitecture ?? "");
+            var sb = new StringBuilder("");
 
+            var propSep = (format switch {
+                ComponentAppIdNameFormat.Package => PROPSEP_PACKAGE,
+                _ => PROPSEP_SXS
+            }).ToString();
+
+            var currentPropSep = "";
             var appendProp = (string prop) =>
             {
-                sb.Append(PROPSEP_SXS).Append(prop);
+                sb.Append(currentPropSep).Append(prop);
+                currentPropSep = propSep;
             };
-            appendProp(GetSanitizedString(Name ?? "", compact ? 40 : -1));
+
+            if (format != ComponentAppIdNameFormat.CbsShort)
+            {
+                appendProp(ProcessorArchitecture ?? "");
+            }
+
+            var nameLimit = format switch
+            {
+                ComponentAppIdNameFormat.CbsLong => 40,
+                ComponentAppIdNameFormat.CbsShort => 24,
+                _ => -1
+            };
+            var cultureLimit = format switch
+            {
+                ComponentAppIdNameFormat.CbsLong => 8,
+                _ => -1
+            };
+
+            appendProp(GetSanitizedString(Name ?? "", nameLimit));
             appendProp(PublicKeyToken ?? "");
             appendProp(Version ?? "");
-            appendProp(GetSanitizedString(culture, compact ? 8 : -1));
+            if (format != ComponentAppIdNameFormat.CbsShort)
+            {
+                appendProp(GetSanitizedString(culture, cultureLimit));
+            }
             appendProp(hash);
             return sb.ToString();
         }

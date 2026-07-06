@@ -14,6 +14,8 @@ public class WindowsRegistryAccessor : IDisposable
     private ManagedRegistryKey? _softwareHive;
     private ManagedRegistryKey? _componentsHive;
 
+    public bool KeepLoaded { get; set; } = false;
+
     public ManagedRegistryKey ComponentsHive
     {
         get
@@ -113,7 +115,7 @@ public class WindowsRegistryAccessor : IDisposable
     {
         using var hKey = new SafeRegistryHandle((nint)RegistryHive.LocalMachine, true);       
 
-        if (!_windows.IsOnline)
+        if (!_windows.IsOnline && !KeepLoaded)
         {
             CloseHive(_systemHive);
             CloseHive(_softwareHive);

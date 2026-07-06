@@ -6,11 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Smx.Winter.Cbs
 {
@@ -36,7 +32,7 @@ namespace Smx.Winter.Cbs
 
     public class Deployment
     {
-        public string AppId { get; set; }
+        public required string AppId { get; set; }
         public string? CatalogThumbprint { get; set; }
 
         public Deployment()

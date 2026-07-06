@@ -113,3 +113,13 @@ OutputDebugString
 RevertToSelf
 CreateProcessAsUser
 GetProcessId
+
+// Catalog files
+CryptCATOpen
+CryptCATCDFOpen
+CryptCATEnumerateMember
+CryptCATEnumerateAttr
+CryptCATClose
+CryptDecodeObject
+SPC_INDIRECT_DATA_CONTENT_STRUCT
+SPC_INDIRECT_DATA_CONTENT

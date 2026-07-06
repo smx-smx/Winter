@@ -6,14 +6,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #endregion
-using Smx.Winter.SchemaDefinitions.AsmV3;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace Smx.Winter.Cbs
 {
     public class RegistryComponentsAccessor
@@ -40,7 +32,7 @@ namespace Smx.Winter.Cbs
         public ComponentNode OpenComponent(string id)
         {
             using var parent = Components;
-            using var hkey = parent.OpenChildKey($@"DerivedData\Components\{id}");
+            using var hkey = parent.OpenChildKey(id);
             var component = Component.FromRegistryKey(hkey);
             return new ComponentNode(component, this);
         }
@@ -48,7 +40,7 @@ namespace Smx.Winter.Cbs
         public DeploymentNode OpenDeployment(string id)
         {
             using var parent = Deployments;
-            using var hkey = parent.OpenChildKey($@"CanonicalData\Deployments\{id}");
+            using var hkey = parent.OpenChildKey(id);
             var deployment = Deployment.FromRegistryKey(hkey);
             return new DeploymentNode(deployment, this);
         }

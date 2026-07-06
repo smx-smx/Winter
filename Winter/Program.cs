@@ -13,15 +13,15 @@ using Smx.Winter.MsDelta;
 using Smx.Winter.Tools;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.System.Services;
 using Smx.Winter.Cbs.Native;
 using Smx.Winter.Cbs;
 using Windows.Win32.System.Com;
-using Smx.Winter.Cbs.Enumerators;
 using Microsoft.Extensions.Hosting;
+using System.Runtime.CompilerServices;
+using Smx.Winter.Cbs.Enumerators;
 
 namespace Smx.Winter;
 
@@ -128,21 +128,57 @@ public class Program
 
     private void TestCbsSession(string bootDrive, string winDir, bool useOfflineServicingStack)
     {
+        var currentWinDir = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.System))!.FullName;
+        var isOnline = string.Equals(currentWinDir, winDir, StringComparison.InvariantCultureIgnoreCase);
+
         var nat = new NativeCbs(winDir);
         var shim = nat.StackShim.SssBindServicingStack(useOfflineServicingStack ? winDir : null);
         var cbsCorePath = shim.GetCbsCorePath();
         Console.WriteLine($"CbsCore: {cbsCorePath}");
         var core = new CbsCore(cbsCorePath);
+        if (isOnline && !useOfflineServicingStack)
+        {
+            core.SetState(CbsCoreState.CbsCoreUseOnlineMode, 0);
+        }
         var session = core.Initialize();
-
-        var currentWinDir = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.System))!.FullName;
-        var isOnline = string.Equals(currentWinDir, winDir, StringComparison.InvariantCultureIgnoreCase);
 
         session.Initialize(_CbsSessionOption.CbsSessionOptionNone,
             "Winter",
             isOnline ? null : bootDrive,
             isOnline ? null : winDir);
+
         session.EnumeratePackages(0x70, out var list);
+
+        if(session is ICbsSession7 session7)
+        {
+            Console.WriteLine("Session v7 is available");
+        }
+        if(session is ICbsSession8 session8)
+        {
+            Console.WriteLine("Session v8 is available");
+        }
+        if(session is ICbsSession10 session10)
+        {
+            Console.WriteLine("Session v10 is available");
+        }
+
+#if false
+        foreach(var item in new CbsIdentityEnumerable(list))
+        {
+            var id = item.GetStringId();
+
+            var pkg = session.OpenPackage(0, item, null!);
+            
+            var srcs = pkg.EnumerateSources();
+            if(srcs is not null)
+            {
+                foreach(var src in new CbsStringEnumerable(srcs))
+                {
+                    Console.WriteLine(src);
+                }
+            }
+        }
+#endif
         session.Finalize(out var requiredAction);
     }
 
@@ -199,7 +235,7 @@ public class Program
             Console.WriteLine(cmp);
             Console.WriteLine(cmp.Identity);
 
-            var formatted = ComponentAppId.FromAppId(cmp.Identity).GetSxSName(compact: true);
+            var formatted = ComponentAppId.FromAppId(cmp.Identity).GetName(ComponentAppIdNameFormat.CbsLong);
             var manifestPath = Path.Combine(windows.SystemRoot, "WinSxS", "Manifests", $"{formatted}.manifest");
             if (!File.Exists(manifestPath))
             {
@@ -216,6 +252,60 @@ public class Program
         {
             using var stream = new FileStream(item, FileMode.Open, FileAccess.Read);
             var obj = asmReader.ReadToObject(stream);
+        }
+    }
+
+
+    // $TODO
+    public void CollectMumDeps(IHost host, string mumFile)
+    {
+        var mumDir = Path.GetDirectoryName(mumFile);
+        if(mumDir == null)
+        {
+            throw new InvalidOperationException("GetDirectoryName failed");
+        }
+
+        var baseName = Path.GetFileNameWithoutExtension(mumFile);
+        var catFile = Path.Combine(mumDir, $"{baseName}.cat");
+        if (!File.Exists(catFile))
+        {
+            throw new InvalidOperationException($"Catalog file is missing");
+        }
+
+        using var cat = new CatalogFile(catFile);
+        foreach(var item in cat.Members)
+        {
+            Console.WriteLine($"itm: {item}");
+        }
+
+        var regAcc = host.Services.GetRequiredService<WindowsRegistryAccessor>();
+        var cmpAcc = new RegistryComponentsAccessor(regAcc);
+
+        var asmReader = NewAssemblyReader();
+        object? obj;
+        using (var stream = new FileStream(mumFile, FileMode.Open, FileAccess.Read))
+        {
+            obj = asmReader.ReadToObject(stream);
+        }
+        if(obj is null)
+        {
+            throw new InvalidOperationException("ReadToObject failed");
+        }
+        if(obj is not SchemaDefinitions.AsmV3.Assembly asm)
+        {
+            throw new NotImplementedException(obj?.GetType().FullName);
+        }
+
+        foreach (var depAsm in (asm.Package?.Parent?.SelectMany(x => x.AssemblyIdentity) ?? []))
+        {
+            Console.WriteLine($"[parent]: {depAsm.GetFileName()}");
+        }
+        foreach(var deploymentAsmId in (asm.Package?.Update?.SelectMany(x => x.Component) ?? []).Select(x => x.AssemblyIdentity))
+        {
+            var deploymentId = ComponentAppId.FromAssemblyIdentity(deploymentAsmId);
+            var deploymentIdCbs = deploymentId.GetName(ComponentAppIdNameFormat.CbsShort);
+            var depl = cmpAcc.OpenDeployment(deploymentIdCbs);
+            Console.WriteLine($"[deployment]: {depl}");
         }
     }
 
@@ -297,6 +387,24 @@ public class Program
             Environment.Exit(1);
         }
 
+        var opts = new WinterFacadeOptions();
+
+        string? arg1 = default;
+
+        if (TryTake(it, out arg1))
+        {
+            if (arg1 == "--sysroot")
+            {
+                if (!TryTake(it, out var sysroot))
+                {
+                    Environment.Exit(1);
+                }
+                opts.SystemRoot = sysroot;
+
+                TryTake(it, out arg1);
+            }
+        }
+
         bool handled = true;
         switch (mode)
         {
@@ -327,27 +435,12 @@ public class Program
             Environment.Exit(0);
         }
 
-        var opts = new WinterFacadeOptions();
-
-        string? arg1 = default;
-
-        if(TryTake(it, out arg1))
-        {
-            if(arg1 == "--sysroot")
-            {
-                if(!TryTake(it, out var sysroot))
-                {
-                    Environment.Exit(1);
-                }
-                opts.SystemRoot = sysroot;
-
-                TryTake(it, out arg1);
-            }
-        }
-
         var hostBuilder = Host.CreateApplicationBuilder();
         WinterFacade.ConfigureServices(hostBuilder.Services, opts);
         var host = hostBuilder.Build();
+
+        // $DEBUG: keep hives loaded
+        host.Services.GetRequiredService<WindowsRegistryAccessor>().KeepLoaded = true;
 
         AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
         {
@@ -366,10 +459,10 @@ public class Program
                 break;
             case "test-cbs-native":
                 /**
-                  * need to start a new thread to "consolidate" the current Token
-                  * otherwise CBS will call `ImpersonateSelf(SecurityImpersonation)`
-                  * which reverts all `AdjustTokenPrivilege` calls made so far
-                  */
+                    * need to start a new thread to "consolidate" the current Token
+                    * otherwise CBS will call `ImpersonateSelf(SecurityImpersonation)`
+                    * which reverts all `AdjustTokenPrivilege` calls made so far
+                    */
                 new Thread(() =>
                 {
                     p.TestCbsNative();
@@ -381,12 +474,15 @@ public class Program
             case "test-mum":
                 p.ParseAllPackages();
                 break;
+            case "mum-deps":
+                ArgumentNullException.ThrowIfNull(arg1);
+                p.CollectMumDeps(host, arg1);
+                break;
             case "read-asm":
                 {
-                    var wcpAcc = host.Services.GetRequiredService<WcpLibraryAccessor>();
-
                     ArgumentNullException.ThrowIfNull(arg1);
 
+                    var wcpAcc = host.Services.GetRequiredService<WcpLibraryAccessor>();
                     using var input = MFile.Open(arg1, FileMode.Open, FileAccess.Read, FileShare.Read);
                     using var stream = new SpanStream(input);
                     var decoded = new AssemblyReader(wcpAcc.ServicingStack).ReadToString(stream);
