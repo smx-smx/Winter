@@ -198,13 +198,14 @@ public class ElevationService
         using var hWinsta = PInvoke.GetProcessWindowStation_SafeHandle();
         if (hWinsta == null) return null;
 
-
         if(!PInvoke.GetUserObjectInformation(
                 hWinsta,
                 USER_OBJECT_INFORMATION_INDEX.UOI_NAME,
                 null, out var sizeNeeded))
         {
-            throw new Win32Exception();
+            var error = Marshal.GetLastWin32Error();
+            if ((WIN32_ERROR)error != WIN32_ERROR.ERROR_INSUFFICIENT_BUFFER)
+                throw new Win32Exception(error);
         }
 
         using var buf = MemoryHGlobal.Alloc(sizeNeeded);
