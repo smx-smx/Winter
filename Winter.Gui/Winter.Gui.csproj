@@ -14,6 +14,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions" Value="true" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="wwwroot\**" />
     <None Update="wwwroot\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

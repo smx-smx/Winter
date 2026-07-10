@@ -89,6 +89,7 @@ DeltaFree
 VirtualAlloc
 GetProcessWindowStation
 GetUserObjectInformation
+CreateFileW
 
 HeapAlloc
 

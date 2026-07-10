@@ -7,10 +7,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Photino.Blazor;
 using Photino.NET;
 using Radzen;
+using Smx.Winter.Gui.Logging;
 using Smx.Winter.Gui.Services;
 using Smx.Winter.Gui.WebControllers;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -147,10 +149,22 @@ class Program
 
         SetEnv_TrustedInstaller(args);
 
+        var logProvider = new WinterFileLoggerProvider();
+        var logStore = logProvider.Store;
+
         var cts = new CancellationTokenSource();
 
         var builder = PhotinoBlazorAppBuilder.CreateDefault(args);
-        builder.Services.AddLogging();
+        builder.Services.AddLogging(logging =>
+        {
+            logging.AddProvider(logProvider);
+            logging.AddFilter<WinterFileLoggerProvider>(
+                null, LogLevel.Information);
+#if DEBUG
+            logging.SetMinimumLevel(LogLevel.Debug);
+#endif
+        });
+        builder.Services.AddSingleton(logStore);
         builder.RootComponents.Add<App>("app");
 
         builder.Services.AddRadzenComponents();
@@ -161,14 +175,27 @@ class Program
             .SetIconFile("favicon.ico")
             .SetTitle("Winter");
 
+        var loggerFactory = app.Services.GetRequiredService<ILoggerFactory>();
+        var logger = loggerFactory.CreateLogger("Winter");
+        logger.LogInformation("Winter starting, logs: {LogPath}", logProvider.LogFilePath);
+
         AppDomain.CurrentDomain.UnhandledException += (sender, error) =>
         {
-            app.MainWindow.ShowMessage("Fatal exception", error.ExceptionObject.ToString());
+            var ex = error.ExceptionObject as Exception;
+            var msg = error.ExceptionObject.ToString();
+            logger.LogCritical(ex ?? new Exception(msg), "Unhandled exception");
+            app.MainWindow.ShowMessage("Fatal exception", msg);
+        };
+
+        TaskScheduler.UnobservedTaskException += (sender, error) =>
+        {
+            logger.LogCritical(error.Exception, "Unobserved task exception");
+            error.SetObserved();
         };
 
         app.Run();
 
-        Console.WriteLine("Closing");
+        logger.LogInformation("Winter shutting down");
         cts.Cancel();
     }
 }

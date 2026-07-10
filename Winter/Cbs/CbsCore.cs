@@ -66,6 +66,14 @@ namespace Smx.Winter.Cbs
         private readonly pfnCbsCoreSetCustomLogging _cbsCoreSetCustomLogging;
         private readonly pfnCbsCoreSetState _cbsCoreSetState;
 
+        private vpfnCustomLogging? _loggingDelegate;
+        private pfnLockProc? _lockProcDelegate;
+        private pfnUnlockProc? _unlockProcDelegate;
+        private pfnInstCreated? _instCreatedDelegate;
+        private pfnInstDestroyed? _instDestroyedDelegate;
+        private pfnReqShutdownNow? _reqShutdownNowDelegate;
+        private pfnReqShutdownProcessing? _reqShutdownProcessingDelegate;
+
         private void CbsLogMessage(int tag, string msg)
         {
             Console.WriteLine($"[CBS,0x{tag:X}] {msg}");
@@ -100,20 +108,27 @@ namespace Smx.Winter.Cbs
                 return _classFactory;
             }
 
-            _cbsCoreSetCustomLogging(CbsLogMessage);
+            _loggingDelegate = CbsLogMessage;
+            _cbsCoreSetCustomLogging(_loggingDelegate);
 
             if (!PInvoke.CoGetMalloc(1, out var iMalloc).Succeeded)
             {
                 throw new InvalidOperationException("CoGetMalloc failed");
             }
+            _lockProcDelegate = (_) => 0;
+            _unlockProcDelegate = () => { };
+            _instCreatedDelegate = () => { };
+            _instDestroyedDelegate = () => { };
+            _reqShutdownNowDelegate = () => { };
+            _reqShutdownProcessingDelegate = () => { };
             var hr = _cbsCoreInitialize(
                 iMalloc,
-                lockProc: (_) => 0,
-                unlockProc: () => { },
-                instCreatedProc: () => { },
-                instDestroyedProc: () => { },
-                reqShutdownNowProc: () => { },
-                reqShutdownProcessingProc: () => { },
+                lockProc: _lockProcDelegate,
+                unlockProc: _unlockProcDelegate,
+                instCreatedProc: _instCreatedDelegate,
+                instDestroyedProc: _instDestroyedDelegate,
+                reqShutdownNowProc: _reqShutdownNowDelegate,
+                reqShutdownProcessingProc: _reqShutdownProcessingDelegate,
                 out var classFactory
             );
             if (hr != 0)

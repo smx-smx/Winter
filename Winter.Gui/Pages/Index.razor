@@ -3,72 +3,285 @@
 @using Smx.Winter.Cbs.Native
 @using Smx.Winter.Gui.Controllers
 @using Smx.Winter.Gui.Models
+@using Smx.Winter.Gui.Logging
 @using Smx.Winter.Cbs.Enumerators
+@using Microsoft.Extensions.Logging
 
-<div>
-    <RadzenButton Click="StartCbsSession">Start CBS Session</RadzenButton>
-    <RadzenCheckBox TValue="bool"
-        Name="use_system_drive" @bind-Value="@_useSystemDrive" />
-    <RadzenLabel Text="Use System Drive" Component="use_system_drive" />
+<div class="cbs-toolbar">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
+        <RadzenButton Click="StartCbsSessionAsync" ButtonStyle="ButtonStyle.Primary" Icon="play_arrow">
+            Start CBS Session
+        </RadzenButton>
+        <RadzenCheckBox TValue="bool" Name="use_system_drive" @bind-Value="@_useSystemDrive" />
+        <RadzenLabel Text="Use System Drive" Component="use_system_drive" />
+    </RadzenStack>
+    <div class="cbs-current-dir">@_currentDir</div>
+    @if (_loadingSession)
+    {
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
+            <RadzenProgressBarCircular Visible="true" Size="ProgressBarCircularSize.Small" />
+            <RadzenText TextStyle="TextStyle.Body2">Initializing CBS session...</RadzenText>
+        </RadzenStack>
+    }
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Filled" Visible="true" class="rz-mt-2">
+            @_error
+        </RadzenAlert>
+        <RadzenButton Click="ClearError" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" class="rz-mt-1">Dismiss</RadzenButton>
+    }
 </div>
-<RadzenLabel>@_currentDir</RadzenLabel>
-<RadzenProgressBarCircular Visible="@_loading"></RadzenProgressBarCircular>
-<p style="color: red">@_error</p>
 
-<RadzenStack
-Orientation="Orientation.Vertical"
-AlignItems="AlignItems.Start"
-Visible="@(_session != null)"
->
-    <RadzenButton Click="GetPackages">Get Components</RadzenButton>
-    <RadzenLabel Text="Package Filter" Component="PackageFilter" />
-    <RadzenTextBox Name="PackageFilter"
-    oninput="@((ChangeEventArgs e) => _searchFilter = e.Value?.ToString() ?? string.Empty)" />
-</RadzenStack>
+@if (_session != null)
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px" class="cbs-controls">
+        <RadzenButton Click="GetPackagesAsync" ButtonStyle="ButtonStyle.Success" Icon="refresh"
+                      Disabled="@_loadingPackages">
+            Load Packages
+        </RadzenButton>
+        @if (_loadingPackages)
+        {
+            <RadzenButton Click="CancelLoading" ButtonStyle="ButtonStyle.Danger" Icon="close" Size="ButtonSize.Small">
+                Cancel
+            </RadzenButton>
+        }
+        <RadzenTextBox Name="PackageFilter" Placeholder="Filter packages..."
+            @oninput="OnSearchInput" class="cbs-search" />
+        <div class="cbs-stats">
+            <RadzenText TextStyle="TextStyle.Body2">
+                @($"Showing {_filteredCount:N0} of {_packages.Count:N0} packages ({_packageCurrent}/{_packageTotal})")
+            </RadzenText>
+        </div>
+    </RadzenStack>
 
-<RadzenDataList
-AllowVirtualization="false"
-AllowPaging="true"
-Data="@(_packages.Where(pkg => pkg.StringId.Contains(_searchFilter, StringComparison.InvariantCultureIgnoreCase)))">
-    <Template Context="pkg">
-        <RadzenPanel>
-            <HeaderTemplate>
-                <RadzenText TextStyle="TextStyle.H6" class="rz-display-flex rz-align-items-center rz-m-0">
-                    <RadzenIcon Icon="account_box" class="rz-me-1" /><b>@pkg.StringId</b>
-                </RadzenText>
-            </HeaderTemplate>
-            <ChildContent>
-            </ChildContent>
-        </RadzenPanel>
-    </Template>
-</RadzenDataList>
+    @if (_loadingPackages)
+    {
+        <RadzenStack Orientation="Orientation.Vertical" Gap="4px" class="rz-my-2">
+            <progress value="@_packageCurrent" max="@Math.Max(_packageTotal, 1)" style="width:100%;height:8px"></progress>
+            <RadzenText TextStyle="TextStyle.Body2">
+                Loading @_packageCurrent of @_packageTotal packages...
+            </RadzenText>
+        </RadzenStack>
+    }
+
+    <RadzenDataList TItem="CbsPackageViewModel"
+        AllowVirtualization="false"
+        AllowPaging="true" PageSize="50" Dense="true"
+        Data="@_filteredPackages">
+        <Template Context="pkg">
+            <div class="cbs-package-card @(_expandedIds.Contains(pkg.StringId) ? "cbs-package-card--expanded" : "")">
+                <div class="cbs-package-header" @onclick="() => ToggleExpand(pkg)">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
+                        <RadzenIcon Icon="@pkg.Icon" class="cbs-package-icon" />
+                        <RadzenStack Orientation="Orientation.Vertical" Gap="2px">
+                            <RadzenText TextStyle="TextStyle.Body1" class="cbs-package-title">
+                                @(string.IsNullOrWhiteSpace(pkg.DisplayName) ? ParseShortName(pkg.StringId) : pkg.DisplayName)
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Caption" class="cbs-package-id">@pkg.StringId</RadzenText>
+                        </RadzenStack>
+                    </RadzenStack>
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="6px">
+                        @if (!string.IsNullOrEmpty(pkg.ReleaseType))
+                        {
+                            <span class="cbs-badge cbs-badge--release">@pkg.ReleaseType</span>
+                        }
+                        @if (pkg.IsStackUpdate)
+                        {
+                            <span class="cbs-badge cbs-badge--stack">Servicing Stack</span>
+                        }
+                        @if (pkg.IsHidden)
+                        {
+                            <span class="cbs-badge cbs-badge--hidden">Hidden</span>
+                        }
+                        <RadzenIcon Icon="@(_expandedIds.Contains(pkg.StringId) ? "expand_less" : "expand_more")" class="cbs-expand-icon" />
+                    </RadzenStack>
+                </div>
+                @if (_expandedIds.Contains(pkg.StringId))
+                {
+                    <div class="cbs-package-details">
+                        <table class="cbs-details-table">
+                            <tbody>
+                                @foreach (var (label, value) in pkg.Details)
+                                {
+                                    <tr>
+                                        <td class="cbs-details-label">@label</td>
+                                        <td class="cbs-details-value @(string.IsNullOrEmpty(value) || value == "-" ? "cbs-details-empty" : "")">@value</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </Template>
+    </RadzenDataList>
+}
+
+<div class="cbs-log-panel @(_showLogs ? "" : "cbs-log-panel--collapsed")">
+    <div class="cbs-log-header" @onclick="ToggleLogs">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="6px">
+            <RadzenIcon Icon="bug_report" class="cbs-log-icon" />
+            <RadzenText TextStyle="TextStyle.Body2" class="cbs-log-title">Logs</RadzenText>
+            <span class="cbs-log-count cbs-badge cbs-badge--logcount">@_logEntries.Count</span>
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
+            <RadzenButton Click="ClearLogs" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                          Visible="@_showLogs">Clear</RadzenButton>
+            <RadzenIcon Icon="@(_showLogs ? "expand_more" : "expand_less")" class="cbs-log-toggle" />
+        </RadzenStack>
+    </div>
+    <div class="cbs-log-content">
+        <div class="cbs-log-entries">
+            @foreach (var entry in _logEntries)
+            {
+                <div class="cbs-log-entry cbs-log-entry--@entry.Level.ToString().ToLowerInvariant()">
+                    <span class="cbs-log-time">@entry.Timestamp.ToString("HH:mm:ss")</span>
+                    <span class="cbs-log-level">@LevelLabel(entry.Level)</span>
+                    <span class="cbs-log-msg">@entry.Message</span>
+                    @if (entry.Exception != null)
+                    {
+                        <div class="cbs-log-exception">
+                            <pre>@entry.Exception</pre>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
 
 @inject PhotinoWindow window;
+@inject ILogger<Index> Logger;
+@inject WinterLogStore LogStore;
 @implements IDisposable
+@implements IAsyncDisposable
 
 @code {
     private string _searchFilter = string.Empty;
     private string _currentDir = string.Empty;
-    private WinterSession? _session = null;
-    private bool _loading = false;
+    private WinterSession? _session;
+    private bool _loadingSession;
+    private bool _loadingPackages;
     private string _error = string.Empty;
-    private bool _useSystemDrive = false;
+    private bool _useSystemDrive;
+    private volatile int _packageTotal;
+    private volatile int _packageCurrent;
+    private bool _showLogs;
+    private readonly HashSet<string> _expandedIds = new();
+    private CancellationTokenSource? _cts;
+    private Timer? _debounceTimer;
+    private Timer? _logRefreshTimer;
+    private string _pendingSearch = string.Empty;
+    private bool _logDirty;
 
-    private IList<CbsPackageViewModel> _packages = new List<CbsPackageViewModel>();
-    private IList<string> _sources = new List<string>();
+    private IReadOnlyList<CbsPackageViewModel> _packages = Array.Empty<CbsPackageViewModel>();
+    private IReadOnlyCollection<WinterLogEntry> _logEntries => LogStore.Entries;
+
+    private IEnumerable<CbsPackageViewModel> _filteredPackages =>
+        string.IsNullOrWhiteSpace(_searchFilter)
+            ? _packages
+            : _packages.Where(p => p.DisplayName.Contains(_searchFilter, StringComparison.InvariantCultureIgnoreCase)
+                                 || p.StringId.Contains(_searchFilter, StringComparison.InvariantCultureIgnoreCase));
+
+    private int _filteredCount => _filteredPackages.Count();
+
+    private double _packageProgressPercent =>
+        _packageTotal > 0 ? Math.Round(_packageCurrent * 100.0 / _packageTotal, 1) : 0;
+
+    private string _packageProgressText =>
+        _packageTotal > 0 ? $"Loading {_packageCurrent:N0} of {_packageTotal:N0} packages..." : "Enumerating packages...";
+
+    protected override void OnInitialized()
+    {
+        LogStore.OnNewEntry += OnNewLogEntry;
+        _logRefreshTimer = new Timer(_ =>
+        {
+            if (!_logDirty) return;
+            _logDirty = false;
+            InvokeAsync(StateHasChanged);
+        }, null, 400, 400);
+    }
+
+    private void OnNewLogEntry()
+    {
+        _logDirty = true;
+    }
 
     public void Dispose()
     {
+        LogStore.OnNewEntry -= OnNewLogEntry;
+        _logRefreshTimer?.Dispose();
         _session?.Dispose();
+        _cts?.Dispose();
+        _debounceTimer?.Dispose();
     }
 
-    private void GetPackages()
+    public async ValueTask DisposeAsync()
     {
-        if (_session == null) return;
-        _packages = _session.GetPackages().Select(pkg => new CbsPackageViewModel(pkg)).ToList();
+        LogStore.OnNewEntry -= OnNewLogEntry;
+        if (_logRefreshTimer != null) await _logRefreshTimer.DisposeAsync();
+        _session?.Dispose();
+        _cts?.Dispose();
+        if (_debounceTimer != null) await _debounceTimer.DisposeAsync();
     }
 
-    private void StartCbsSession()
+    private void ToggleExpand(CbsPackageViewModel pkg)
+    {
+        if (!_expandedIds.Remove(pkg.StringId))
+            _expandedIds.Add(pkg.StringId);
+    }
+
+    private void ToggleLogs()
+    {
+        _showLogs = !_showLogs;
+    }
+
+    private void ClearLogs()
+    {
+        LogStore.Clear();
+    }
+
+    private void ClearError()
+    {
+        _error = string.Empty;
+    }
+
+    private static string LevelLabel(LogLevel level) => level switch
+    {
+        LogLevel.Trace => "TRCE",
+        LogLevel.Debug => "DBUG",
+        LogLevel.Information => "INFO",
+        LogLevel.Warning => "WARN",
+        LogLevel.Error => "ERRO",
+        LogLevel.Critical => "CRIT",
+        _ => "????"
+    };
+
+    private static string ParseShortName(string stringId)
+    {
+        var idx = stringId.IndexOf('~');
+        if (idx > 0) return stringId[..idx];
+        idx = stringId.IndexOf(", Culture=", StringComparison.OrdinalIgnoreCase);
+        if (idx > 0) return stringId[..idx];
+        return stringId;
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        _pendingSearch = value;
+        _debounceTimer?.Dispose();
+        _debounceTimer = new Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                _searchFilter = _pendingSearch;
+                StateHasChanged();
+            });
+        }, null, 300, Timeout.Infinite);
+    }
+
+    private async Task StartCbsSessionAsync()
     {
         var winDir = _useSystemDrive
             ? Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.System))!.FullName
@@ -78,23 +291,93 @@ Data="@(_packages.Where(pkg => pkg.StringId.Contains(_searchFilter, StringCompar
         var bootDrive = Path.GetPathRoot(winDir);
         if (bootDrive == null) return;
 
+        Logger.LogInformation("Starting CBS session for {WinDir}", winDir);
         _currentDir = winDir;
-        _loading = true;
+        _loadingSession = true;
         _error = string.Empty;
+        StateHasChanged();
 
         _session?.Dispose();
-        try {
-            _session = new WinterSession(new Models.StartCbsSessionCommand
+        _packages = Array.Empty<CbsPackageViewModel>();
+
+        try
+        {
+            _session = await Task.Run(() => new WinterSession(new StartCbsSessionCommand
             {
                 BootDrive = bootDrive,
                 WinDir = winDir
-            });
-        } catch (Exception ex)
-        {
-            _error = ex.ToString();
-        } finally
-        {
-            _loading = false;
+            }, Logger));
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to start CBS session");
+            _error = ex.ToString();
+        }
+        finally
+        {
+            _loadingSession = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetPackagesAsync()
+    {
+        if (_session == null) return;
+
+        Logger.LogInformation("Loading packages");
+        _loadingPackages = true;
+        _packageCurrent = 0;
+        _packageTotal = 0;
+        _error = string.Empty;
+        _expandedIds.Clear();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        StateHasChanged();
+        await Task.Delay(50);
+
+        var progressCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+        _ = UpdateProgressLoop(progressCts.Token);
+        try
+        {
+            _packages = await _session.GetPackagesAsync(
+                (current, total) =>
+                {
+                    _packageCurrent = current;
+                    _packageTotal = total;
+                },
+                _cts.Token
+            );
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogWarning("Package loading cancelled");
+            _error = "Package loading cancelled.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load packages");
+            _error = ex.ToString();
+        }
+        finally
+        {
+            _loadingPackages = false;
+            _cts?.Dispose();
+            _cts = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateProgressLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(50, ct); } catch (OperationCanceledException) { break; }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CancelLoading()
+    {
+        _cts?.Cancel();
     }
 }

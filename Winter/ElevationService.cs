@@ -18,6 +18,7 @@ using System.Text;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Security;
+using Windows.Win32.Storage.FileSystem;
 using Windows.Win32.System.Services;
 using Windows.Win32.System.StationsAndDesktops;
 using Windows.Win32.System.Threading;
@@ -227,6 +228,28 @@ public class ElevationService
             throw new ArgumentException();
         }
 
+        var exeDir = Path.GetDirectoryName(args[0])!;
+        var logPath = Path.Combine(exeDir, $"winter-child-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+
+        var sa = new SECURITY_ATTRIBUTES
+        {
+            bInheritHandle = true,
+            nLength = (uint)Marshal.SizeOf<SECURITY_ATTRIBUTES>(),
+            lpSecurityDescriptor = null
+        };
+
+        var hLogFile = PInvoke.CreateFile(
+            logPath,
+            (uint)0x40000000, // GENERIC_WRITE
+            FILE_SHARE_MODE.FILE_SHARE_READ,
+            sa,
+            FILE_CREATION_DISPOSITION.CREATE_ALWAYS,
+            FILE_FLAGS_AND_ATTRIBUTES.FILE_FLAG_WRITE_THROUGH,
+            null
+        );
+        if (hLogFile.IsInvalid)
+            throw new Win32Exception();
+
         var cmdLine = string.Join(' ', args.Select(arg => $"\"{arg}\"")) + "\0";
         var cmdLineSpan = cmdLine.ToArray().AsSpan();
 
@@ -242,9 +265,12 @@ public class ElevationService
         unsafe
         {
             si.lpDesktop = new PWSTR((char*)lpDesktop.Address.ToPointer());
+            si.dwFlags = STARTUPINFOW_FLAGS.STARTF_USESTDHANDLES;
+            si.hStdOutput = new Windows.Win32.Foundation.HANDLE(hLogFile.DangerousGetHandle());
+            si.hStdError = new Windows.Win32.Foundation.HANDLE(hLogFile.DangerousGetHandle());
             if (!PInvoke.CreateProcessWithToken(
                 tiToken,
-                CREATE_PROCESS_LOGON_FLAGS.LOGON_WITH_PROFILE,
+                0,
                 args[0],
                 ref cmdLineSpan,
                 PROCESS_CREATION_FLAGS.CREATE_UNICODE_ENVIRONMENT,
@@ -258,6 +284,7 @@ public class ElevationService
         }
         try
         {
+            Console.Error.WriteLine($"Child process stdout/stderr redirected to: {logPath}");
             return Process.GetProcessById((int)pi.dwProcessId);
         } finally
         {
